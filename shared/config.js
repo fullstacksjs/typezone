@@ -52,7 +52,7 @@ export const MOBS = {
     desc: 'Slow, 3 long words, huge damage',
   },
   slimelet: {
-    hidden: true, name: 'Slimelet', cost: 0, speed: 88, damage: 3, words: 1, len: [3, 4], bountyCost: 6,
+    hidden: true, name: 'Slimelet', cost: 0, speed: 72, damage: 3, words: 1, len: [3, 4], bountyCost: 6,
   },
 };
 
