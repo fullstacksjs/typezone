@@ -1,9 +1,9 @@
-import { BASE_HP, LANE_LENGTH, MOBS, SPELLS, ULT_MAX } from '/shared/config.js';
+import { BASE_HP, LANE_LENGTH, MOBS, SPELLS, ULT_MAX, comboMultiplier } from '/shared/config.js';
 import { Renderer } from './render.js';
 import { sfx, unlockAudio, toggleMute, isMuted } from './audio.js';
 import { icon } from './icons.js';
 import {
-  $, SHOP_ITEMS, itemCost, showScreen, buildShop, flashShop, showAlert, setTypingLine, updateHud, resetHud,
+  $, SHOP_ITEMS, itemCost, showScreen, buildShop, flashShop, showAlert, flashMiss, updateHud, resetHud,
   floatGold, showEnd,
 } from './ui.js';
 
@@ -95,7 +95,6 @@ function onMessage(msg) {
     case 'end':
       S.playing = false;
       S.lock = null;
-      setTypingLine(null);
       showEnd(msg, S.you, S.names);
       if (msg.winner === S.you) sfx.win();
       else sfx.lose();
@@ -124,8 +123,7 @@ function onMessage(msg) {
 function enterGameScreen() {
   showScreen('game');
   renderer.resize();
-  $('#me-name').textContent = S.names[S.you];
-  $('#opp-name').textContent = S.names[opp()];
+  $('#mine').setAttribute('aria-label', `${S.names[S.you]}'s mine`);
 }
 
 function startMatch() {
@@ -141,7 +139,6 @@ function startMatch() {
   S.display.clear();
   S.oppTyped.clear();
   resetHud();
-  setTypingLine(null);
   sfx.count(true);
   showAlert('FIGHT! Mine gold and send your army', 'mine', 1600, 1, 'sword');
 }
@@ -187,26 +184,8 @@ function validateLock() {
   }
 }
 
-const LANE_NAMES = ['top', 'middle', 'bottom'];
-
-/** Refresh the typing readout for the current lock. */
-function showLock(err = false) {
-  const lock = S.lock;
-  if (!lock) return setTypingLine(null, 0, err);
-  let tag;
-  if (lock.kind === 'ore') {
-    const ore = me()?.ores.find((o) => o.id === lock.id);
-    tag = ore?.diamond ? 'DIAMOND ORE' : ore?.golden ? 'GOLDEN ORE' : 'ORE';
-  } else {
-    const m = S.snap?.mobs.find((x) => x.id === lock.id);
-    tag = m ? `${MOBS[m.type].name} · ${LANE_NAMES[m.lane]}`.toUpperCase() : '';
-  }
-  setTypingLine(lock.word, lock.typed, err, tag);
-}
-
 function dropLock() {
   S.lock = null;
-  setTypingLine(null);
 }
 
 function handleEvent(e) {
@@ -219,10 +198,11 @@ function handleEvent(e) {
       }
       break;
     case 'kill': {
+      // The killer's target was coming at them: our kills land on the defend road, theirs on the attack road.
       const color = mine ? '#2F6FE0' : '#E8681C';
-      if (!(mine && S.killed.has(e.mobId))) renderer.burstAtWorld(e.x, e.lane, color, 16);
-      if (e.type === 'slime') renderer.burstAtWorld(e.x, e.lane, '#8EE07A', 24, 220);
-      if (mine) renderer.killAtWorld(e.x, e.lane, `+${e.bounty}◆`);
+      if (!(mine && S.killed.has(e.mobId))) renderer.burstAtWorld(e.x, mine, color, 16);
+      if (e.type === 'slime') renderer.burstAtWorld(e.x, mine, '#8EE07A', 24, 220);
+      if (mine) renderer.killAtWorld(e.x, mine, `+${e.bounty}◆`);
       if (!mine) sfx.enemyHit();
       break;
     }
@@ -231,18 +211,18 @@ function handleEvent(e) {
       break;
     case 'send':
       if (mine) sfx.send();
-      else showAlert(`${S.names[opp()]} sent a ${MOBS[e.type].name}!`, 'info', 1400, 1, e.type, e.lane == null ? '' : `${LANE_NAMES[e.lane]} lane`);
+      else showAlert(`${S.names[opp()]} sent a ${MOBS[e.type].name}!`, 'info', 1400, 1, e.type);
       break;
     case 'baseHit':
       if (mine) {
         renderer.shake(14);
         renderer.flashBase(S.you);
-        renderer.float(renderer.baseX('me') + 60, renderer.h * 0.4, `−${e.dmg}`, '#C2183A', 40);
+        renderer.floatAtBase('me', `−${e.dmg}`, '#C2183A', 40);
         sfx.baseHit();
       } else {
         renderer.shake(4);
         renderer.flashBase(opp());
-        renderer.float(renderer.baseX('opp') - 60, renderer.h * 0.4, `−${e.dmg}`, '#C2183A', 40);
+        renderer.floatAtBase('opp', `−${e.dmg}`, '#C2183A', 40);
         sfx.enemyHit();
       }
       break;
@@ -255,14 +235,14 @@ function handleEvent(e) {
       } else if (e.spell === 'repair') {
         const side = mine ? 'me' : 'opp';
         renderer.healBase(e.slot);
-        renderer.float(renderer.baseX(side), renderer.h * 0.3, `+${SPELLS.repair.amount}`, '#5BB33A', 34);
+        renderer.floatAtBase(side, `+${SPELLS.repair.amount}`, '#5BB33A', 34);
       } else if (!mine) {
         showAlert(`${S.names[opp()]} cast ${name}`, 'info', 1200, 1, e.spell);
       }
       break;
     }
     case 'ult':
-      renderer.lightning(e.targets);
+      renderer.lightning(e.targets, mine);
       sfx.ult();
       if (!mine) showAlert(`${S.names[opp()]} called down LIGHTNING!`, 'info', 1500, 2, 'bolt');
       break;
@@ -318,7 +298,6 @@ function typeChar(ch) {
 
   if (lock.typed < lock.word.length) {
     if (lock.kind === 'mob') send({ t: 'progress', id: lock.id, wi: lock.wi, typed: lock.typed });
-    showLock();
     return;
   }
 
@@ -337,7 +316,6 @@ function typeChar(ch) {
     sfx.armor();
     if (pos) renderer.burst(pos.x, pos.y, '#c8cfdb', 10, 120);
     S.lock = { kind: 'mob', id: mob.id, wi: lock.wi + 1, typed: 0, word: mob.words[lock.wi + 1] };
-    showLock();
   } else {
     sfx.kill();
     if (pos) renderer.killFx(pos.x, pos.y);
@@ -350,7 +328,8 @@ function miss() {
   send({ t: 'miss' });
   sfx.miss();
   if (S.snap) me().combo = 0;
-  showLock(true);
+  renderer.miss();
+  flashMiss();
 }
 
 function setMode(mode) {
@@ -412,12 +391,6 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
-for (const el of document.querySelectorAll('.mode-btn')) {
-  el.addEventListener('mousedown', (e) => {
-    e.preventDefault();
-    if (S.playing) setMode(el.dataset.mode);
-  });
-}
 buildShop(buy);
 
 // ------------------------------------------------------------ frame loop
@@ -444,7 +417,8 @@ function frame(now) {
   if (S.snap && $('#game').classList.contains('active')) {
     updateHud({ snap: S.snap, you: S.you, mode: S.mode, lock: S.lock, hiddenOres: S.hiddenOres, danger });
   }
-  renderer.draw({ snap: S.snap, mobs, lock: S.lock, mode: S.mode, now }, dt);
+  const combo = S.snap ? `×${comboMultiplier(me().combo).toFixed(1)}` : null;
+  renderer.draw({ snap: S.snap, mobs, lock: S.lock, mode: S.mode, combo, now }, dt);
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);

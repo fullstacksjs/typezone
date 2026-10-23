@@ -70,91 +70,99 @@
 
   <!-- Game -->
   <section id="game" class="screen gather">
-    <header class="hud">
-      <div class="hud-side me">
-        <div class="crest me" aria-hidden="true">
-          <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#FFF8E8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"></circle><circle cx="12" cy="12" r="3"></circle></svg>
-        </div>
-        <div class="hud-info">
-          <div class="hud-row">
-            <span class="hud-name disp" id="me-name">You</span>
-            <span class="you-tag">YOU</span>
+    <main class="field-wrap">
+      <div class="surface">
+        <canvas id="field"></canvas>
+        <div id="fog-mist" class="fog-mist hidden" aria-hidden="true"><i></i></div>
+
+        <!-- Your cluster: HP over Lightning, above your castle -->
+        <div class="cluster me">
+          <div class="cluster-row">
+            <span class="hp-num disp" id="me-hp-text">100</span>
             <span class="status" id="me-status"></span>
           </div>
-          <div class="hud-row">
-            <div class="hp"><div class="hp-fill" id="me-hp"></div><div class="hp-ticks"></div></div>
-            <span class="hp-num disp" id="me-hp-text">100</span>
-            <span class="gold-pill"><svg width="18" height="18" viewBox="0 0 24 24" fill="#F2B705" stroke="#FFD34D" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h12l4 6-10 12L2 9z"></path></svg><span id="me-gold">0</span></span>
+          <div class="cluster-row">
+            <div class="bars">
+              <div class="ult-bar" id="ult" role="img" aria-label="Your Lightning, press Enter when full"><div class="ult-fill" id="ult-fill"></div></div>
+              <div class="hp"><div class="hp-fill" id="me-hp"></div><div class="hp-ticks"></div></div>
+            </div>
+            <span class="ult-icon" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 48 48" aria-hidden="true"><path d="M28 4 9 27h13l-3 17 21-25H27z" fill="#FFD34D" stroke="#FFD34D" stroke-width="2" stroke-linejoin="round"></path></svg><kbd>Enter</kbd></span>
           </div>
         </div>
-      </div>
 
-      <div class="hud-center">
-        <div id="timer" class="disp">0:00</div>
-        <div id="overtime" class="phase"></div>
-      </div>
-
-      <div class="hud-side opp">
-        <div class="hud-info">
-          <div class="hud-row">
+        <!-- Opponent cluster: gold, HP, Lightning (their mining shows underground) -->
+        <div class="cluster opp">
+          <div class="cluster-row">
             <span class="status" id="opp-status"></span>
-            <span class="opp-mode" id="opp-mode"></span>
-            <span class="opp-ult" id="opp-ult"></span>
-            <span class="hud-name disp" id="opp-name">Opponent</span>
-          </div>
-          <div class="hud-row">
-            <span class="gold-pill"><svg width="18" height="18" viewBox="0 0 24 24" fill="#F2B705" stroke="#FFD34D" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h12l4 6-10 12L2 9z"></path></svg><span id="opp-gold">0</span></span>
+            <span class="gold-pill" id="opp-gold-pill"><svg width="15" height="15" viewBox="0 0 24 24" fill="#F2B705" aria-hidden="true"><path d="M6 3h12l4 6-10 12L2 9z"></path></svg><span id="opp-gold">0</span></span>
             <span class="hp-num disp" id="opp-hp-text">100</span>
-            <div class="hp"><div class="hp-fill" id="opp-hp"></div><div class="hp-ticks"></div></div>
+          </div>
+          <div class="cluster-row">
+            <span class="ult-icon" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 48 48" aria-hidden="true"><path d="M28 4 9 27h13l-3 17 21-25H27z" fill="#FFD34D" stroke="#FFD34D" stroke-width="2" stroke-linejoin="round"></path></svg></span>
+            <div class="bars">
+              <div class="ult-bar" id="opp-ult" role="img" aria-label="Opponent Lightning"><div class="ult-fill" id="opp-ult-fill"></div></div>
+              <div class="hp"><div class="hp-fill" id="opp-hp"></div><div class="hp-ticks"></div></div>
+            </div>
           </div>
         </div>
-        <div class="crest opp" aria-hidden="true">
-          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#FFF8E8" stroke-width="2.6" stroke-linejoin="round"><path d="M12 4 20 19H4z"></path></svg>
+
+        <div class="timer-tab">
+          <span id="timer" class="disp">0:00</span>
+          <button id="btn-mute" class="mute" aria-label="Mute sound"></button>
         </div>
-        <button id="btn-mute" class="mute" aria-label="Mute sound"></button>
+        <div id="alert" class="alert" role="status"></div>
       </div>
-    </header>
 
-    <div class="field-wrap">
-      <canvas id="field"></canvas>
-      <div id="fog-mist" class="fog-mist hidden" aria-hidden="true"><i></i><i></i></div>
-      <div id="vignette" class="vig hidden" aria-hidden="true"></div>
-      <div id="alert" class="alert" role="status"></div>
-      <div id="gate-alert" class="gate-alert hidden">Mobs at the gate! Press <kbd>Tab</kbd> to fight</div>
-      <div id="typing" class="typing-line"></div>
-    </div>
-
-    <footer class="console">
-      <section class="panel stance">
-        <div class="panel-head"><span>STANCE</span><kbd>Tab</kbd></div>
-        <button class="mode-btn" data-mode="fight" tabindex="-1">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2M14.5 6.5 18 3h3v3l-3.5 3.5M5 14l4 4M7 17l-3 3M3 19l2 2"></path></svg><span class="mode-label">Fight</span>
-        </button>
-        <button class="mode-btn" data-mode="gather" tabindex="-1">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M4 9c4-5 12-5 16 0M12 6 6 20"></path></svg><span class="mode-label">Gather</span>
-        </button>
-        <div class="combo"><span id="combo" class="disp">×1.0</span><small>combo · streak <b id="combo-n">0</b></small></div>
-      </section>
-
-      <section class="panel mine" id="mine">
-        <div class="panel-head"><span>THE MINE</span><small id="mine-hint"></small></div>
-        <div class="ores" id="ores"></div>
-      </section>
-
-      <section class="panel shop">
-        <div class="shop-head"><span>BARRACKS</span><span>ARCANE</span></div>
-        <div class="shop-grid" id="shop"></div>
-      </section>
-
-      <section class="panel ult" id="ult">
-        <div class="ult-ring" id="ult-ring">
-          <div class="ult-core">
-            <svg width="34" height="34" viewBox="0 0 24 24" fill="#FFD34D" stroke="#FFD34D" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true"><path d="M13 2 3 14h9l-1 8 10-12h-9z"></path></svg>
-            <span class="disp" id="ult-pct">0%</span>
+      <div class="underground">
+        <!-- Your mine, under your castle -->
+        <section class="mine me" id="mine" aria-label="Your mine">
+          <span class="shaft" aria-hidden="true"></span>
+          <div class="mine-tags"><kbd>Tab</kbd><span id="combo" class="combo-chip disp">×1.0</span><span id="mine-hint" class="mine-hint"></span><span id="gate-alert" class="gate-alert hidden">Mobs at the gate! Press <kbd>Tab</kbd> to fight</span></div>
+          <div class="cave">
+            <i class="lamp"></i><i class="lamp"></i><i class="lamp"></i><i class="lamp"></i>
+            <span class="miner-spot">
+              <span class="miner-ring" aria-hidden="true"></span>
+              <svg class="miner" viewBox="0 0 48 56" aria-hidden="true">
+              <circle cx="22" cy="20" r="10" fill="#F1C9A5" stroke="#2B2118" stroke-width="2.5"></circle>
+              <path d="M11 17a11 9 0 0 1 22 0z" fill="#2F6FE0" stroke="#2B2118" stroke-width="2.5"></path>
+              <circle cx="22" cy="10" r="3" fill="#FFD34D" stroke="#2B2118" stroke-width="1.5"></circle>
+              <rect x="13" y="30" width="18" height="20" rx="5" fill="#2F6FE0" stroke="#2B2118" stroke-width="2.5"></rect>
+              <g class="swing"><path d="M32 34 44 14" stroke="#A0703F" stroke-width="4" stroke-linecap="round"></path><path d="M38 10q8 2 10 10" fill="none" stroke="#B8C0CC" stroke-width="5" stroke-linecap="round"></path></g>
+            </svg>
+            </span>
+            <div class="ores" id="ores"></div>
           </div>
-        </div>
-        <div class="ult-label">LIGHTNING <kbd>Enter</kbd></div>
-      </section>
+        </section>
+        <div class="bedrock" aria-hidden="true"></div>
+        <!-- Opponent's mine: you can see them digging, not their words -->
+        <section class="mine opp" id="opp-mine" aria-label="Opponent's mine">
+          <span class="shaft" aria-hidden="true"></span>
+          <div class="cave">
+            <i class="lamp"></i><i class="lamp"></i><i class="lamp"></i><i class="lamp"></i>
+            <div class="ores" id="opp-rocks" aria-hidden="true"></div>
+            <span class="miner-spot">
+              <span class="miner-ring" aria-hidden="true"></span>
+              <svg class="miner" viewBox="0 0 48 56" aria-hidden="true">
+              <circle cx="22" cy="20" r="10" fill="#F1C9A5" stroke="#2B2118" stroke-width="2.5"></circle>
+              <path d="M11 17a11 9 0 0 1 22 0z" fill="#E8681C" stroke="#2B2118" stroke-width="2.5"></path>
+              <circle cx="22" cy="10" r="3" fill="#FFD34D" stroke="#2B2118" stroke-width="1.5"></circle>
+              <rect x="13" y="30" width="18" height="20" rx="5" fill="#E8681C" stroke="#2B2118" stroke-width="2.5"></rect>
+              <g class="swing"><path d="M32 34 44 14" stroke="#A0703F" stroke-width="4" stroke-linecap="round"></path><path d="M38 10q8 2 10 10" fill="none" stroke="#B8C0CC" stroke-width="5" stroke-linecap="round"></path></g>
+            </svg>
+            </span>
+          </div>
+        </section>
+      </div>
+      <div id="vignette" class="vig hidden" aria-hidden="true"></div>
+    </main>
+
+    <!-- Console: wallet + shop -->
+    <footer class="console">
+      <div class="wallet" aria-label="Your gold">
+        <svg width="34" height="34" viewBox="0 0 24 24" fill="#F2B705" stroke="#FFD34D" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h12l4 6-10 12L2 9z"></path></svg>
+        <span class="disp" id="me-gold">0</span>
+      </div>
+      <div class="shop" id="shop"></div>
     </footer>
 
     <div id="countdown" class="overlay hidden"><div class="count disp" id="count-n">3</div></div>

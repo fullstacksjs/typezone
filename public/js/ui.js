@@ -1,18 +1,20 @@
 import {
-  BASE_HP, MOBS, SPELLS, ULT_MAX, GOLD_PER_CHAR, GOLDEN_MULT, DIAMOND_MULT, OVERTIME_AT, comboMultiplier,
+  BASE_HP, MOBS, SPELLS, ULT_MAX, GOLD_PER_CHAR, GOLDEN_MULT, GOLDEN_TTL, DIAMOND_MULT, DIAMOND_TTL, comboMultiplier,
 } from '/shared/config.js';
-import { icon, gem } from './icons.js';
+import { icon, gem, tileArt } from './icons.js';
 
 export const $ = (sel) => document.querySelector(sel);
 
-// Grid order: Barracks fills the left two columns, Arcane the right two.
-export const SHOP_ITEMS = [
-  { id: 'goblin' }, { id: 'knight' }, { id: 'frost', spell: true }, { id: 'fog', spell: true },
-  { id: 'slime' }, { id: 'giant' }, { id: 'repair', spell: true }, { id: 'pickaxe', spell: true },
-  { id: 'drill', spell: true }, { id: 'luck', spell: true },
-].map((it) => {
-  const def = MOBS[it.id] ?? SPELLS[it.id];
-  return { ...it, key: def.key, name: def.name, desc: def.desc };
+// The console's three trays, in key order 1–0.
+export const SHOP_GROUPS = [
+  { name: 'Barracks: send units', cls: 'barracks', glyph: 'flag', items: ['goblin', 'knight', 'slime', 'giant'] },
+  { name: 'Arcane: spells', cls: 'arcane', glyph: 'sparkle', items: ['frost', 'fog', 'repair'] },
+  { name: 'Upgrades: permanent', cls: 'upgrades', glyph: 'up', items: ['pickaxe', 'luck', 'drill'] },
+];
+
+export const SHOP_ITEMS = SHOP_GROUPS.flatMap((g) => g.items).map((id) => {
+  const def = MOBS[id] ?? SPELLS[id];
+  return { id, key: def.key, name: def.name, desc: def.desc };
 });
 
 export function itemCost(id, player) {
@@ -26,26 +28,41 @@ export function showScreen(id) {
 }
 
 export function buildShop(onBuy) {
-  const grid = $('#shop');
-  grid.innerHTML = '';
-  for (const it of SHOP_ITEMS) {
-    const el = document.createElement('button');
-    el.className = `shop-item${it.spell ? ' spell' : ''}`;
-    el.dataset.id = it.id;
-    el.tabIndex = -1;
-    el.title = `${it.name}: ${it.desc}`;
-    el.innerHTML = `<kbd class="key">${it.key}</kbd>${icon(it.id, { size: 34, width: 2.2, cls: 'icon' })}`
-      + `<span class="txt"><span class="nm">${it.name}</span><span class="cost"></span><span class="availability"></span><span class="pips"></span></span>`;
-    el.addEventListener('mousedown', (e) => {
-      e.preventDefault();
-      onBuy(it.id);
-    });
-    grid.appendChild(el);
+  const shop = $('#shop');
+  shop.innerHTML = '';
+  for (const g of SHOP_GROUPS) {
+    const tray = document.createElement('div');
+    tray.className = `tray ${g.cls}`;
+    tray.setAttribute('role', 'group');
+    tray.setAttribute('aria-label', g.name);
+    tray.style.setProperty('--n', g.items.length);
+    tray.innerHTML = `<span class="tray-badge" aria-hidden="true">${icon(g.glyph, { size: 16, width: 3 })}</span>`;
+    for (const id of g.items) {
+      const it = SHOP_ITEMS.find((x) => x.id === id);
+      const el = document.createElement('button');
+      el.className = 'tile';
+      el.dataset.id = id;
+      el.tabIndex = -1;
+      el.title = `${it.name}: ${it.desc}`;
+      el.innerHTML = '<span class="tile-face">'
+        + '<svg class="ring" viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="45"></circle><g class="arcs"></g></svg>'
+        + tileArt(id)
+        + `<span class="tile-cd hidden"><span class="cd-chip">${icon('clock', { size: 14, width: 3 })}<span></span></span></span>`
+        + `<kbd class="key">${it.key}</kbd>`
+        + (MOBS[id] ? `<span class="send-badge" aria-hidden="true">${icon('arrowRight', { size: 14, width: 3.5 })}</span>` : '')
+        + `</span><span class="cost">${gem(13)}<span></span></span>`;
+      el.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        onBuy(id);
+      });
+      tray.appendChild(el);
+    }
+    shop.appendChild(tray);
   }
 }
 
 export function flashShop(id, ok) {
-  const el = document.querySelector(`.shop-item[data-id="${id}"]`);
+  const el = document.querySelector(`.tile[data-id="${id}"]`);
   if (!el) return;
   const cls = ok ? 'flash' : 'denied';
   el.classList.remove(cls);
@@ -75,50 +92,96 @@ export function showAlert(text, kind = 'info', ms = 1800, priority = 1, ico = nu
   }, ms);
 }
 
-/** Typing readout. `tag` names the target, e.g. "KNIGHT · TOP". */
-export function setTypingLine(word, typed, err = false, tag = '') {
-  const el = $('#typing');
-  if (!word) {
-    el.innerHTML = '<span class="idle">start typing…</span>';
-  } else {
-    el.innerHTML = `<span class="tag">${escapeHtml(tag)}</span>`
-      + `<span class="word"><span class="done">${word.slice(0, typed)}</span>`
-      + `<span class="next">${word.charAt(typed)}</span><span class="rest">${word.slice(typed + 1)}</span></span>`
-      + '<span class="hint">Esc to drop</span>';
-    el.querySelector('.done').classList.toggle('hidden', typed === 0);
-  }
-  if (err) {
-    el.classList.remove('err');
-    void el.offsetWidth;
-    el.classList.add('err');
-    clearTimeout(typingErrTimer);
-    typingErrTimer = setTimeout(() => el.classList.remove('err'), 300);
-  }
+/** A typo while mining shakes the ore you're on. */
+export function flashMiss() {
+  const el = document.querySelector('#ores .ore.locked');
+  if (!el) return;
+  el.classList.remove('err');
+  void el.offsetWidth;
+  el.classList.add('err');
 }
-let typingErrTimer = null;
 
 const fmtTime = (t) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
 
 function statusTags(p) {
   let s = '';
-  if (p.frost > 0) s += `<span class="status-tag frost">${icon('frost', { size: 16, width: 2.5 })}FROST ${Math.ceil(p.frost)}s</span>`;
-  if (p.fog > 0) s += `<span class="status-tag fog">${icon('fog', { size: 16, width: 2.5 })}FOGGED ${Math.ceil(p.fog)}s</span>`;
+  if (p.frost > 0) s += `<span class="status-tag frost" aria-label="Frost, ${Math.ceil(p.frost)} seconds">${icon('frost', { size: 18, width: 2.6 })}${Math.ceil(p.frost)}</span>`;
+  if (p.fog > 0) s += `<span class="status-tag fog" aria-label="Fogged, ${Math.ceil(p.fog)} seconds">${icon('fog', { size: 18, width: 2.6 })}${Math.ceil(p.fog)}</span>`;
   return s;
 }
 
 const lastHp = { me: BASE_HP, opp: BASE_HP };
 let lastCombo = 0;
 let lastOreSig = '';
+let lastRockSig = '';
 let lastStatusSig = '';
-let lastOppSig = '';
+const lastTileSig = new Map();
 
 export function resetHud() {
   lastHp.me = BASE_HP;
   lastHp.opp = BASE_HP;
   lastCombo = 0;
   lastOreSig = '';
+  lastRockSig = '';
   lastStatusSig = '';
-  lastOppSig = '';
+  lastTileSig.clear();
+}
+
+// Tile rings: one arc per charge (mobs) or level (upgrades); spells get a plain ring.
+const ringPt = (deg, r) => {
+  const a = ((deg - 90) * Math.PI) / 180;
+  return `${(60 + r * Math.cos(a)).toFixed(1)} ${(60 + r * Math.sin(a)).toFixed(1)}`;
+};
+const ringArc = (a0, a1) => `M${ringPt(a0, 53)} A53 53 0 ${a1 - a0 > 180 ? 1 : 0} 1 ${ringPt(a1, 53)}`;
+const arcPath = (d, c) => `<path d="${d}" fill="none" stroke="${c}" stroke-width="11"></path>`;
+
+/** `fills` holds 0–1 per segment. */
+function ringArcs(fills, color) {
+  if (!fills.length) return arcPath(ringArc(0, 359.9), '#C9B48E');
+  const span = 360 / fills.length;
+  const gap = fills.length > 1 ? 9 : 0;
+  return fills.map((f, i) => {
+    const a0 = i * span + gap / 2;
+    const a1 = (i + 1) * span - gap / 2;
+    return arcPath(ringArc(a0, a1), '#E9D9B8') + (f > 0 ? arcPath(ringArc(a0, a0 + (a1 - a0) * Math.min(f, 0.999)), color) : '');
+  }).join('');
+}
+
+function updateTile(el, me, snap) {
+  const id = el.dataset.id;
+  const cost = itemCost(id, me);
+  const charge = me.charges[id];
+  let fills = [];
+  let color = '#2F6FE0';
+  let cd = 0;
+  if (charge) {
+    const max = MOBS[id].charges;
+    fills = Array.from({ length: max }, (_, i) => (i < charge.n ? 1 : i === charge.n ? Math.floor(charge.progress * 50) / 50 : 0));
+    if (charge.n === 0) cd = Math.ceil((1 - charge.progress) * charge.recharge);
+  } else if (SPELLS[id].costs) {
+    fills = SPELLS[id].costs.map((_, i) => (i < me[id] ? 1 : 0));
+    color = '#F2B705';
+  } else {
+    cd = Math.ceil(id === 'frost' ? me.frostCd : id === 'repair' ? me.repairCd : 0);
+  }
+  const afford = cost != null && me.gold >= cost;
+  const blocked = id === 'repair' && (snap.suddenDeath || me.hp >= BASE_HP);
+  const usable = afford && cd === 0 && !blocked;
+  el.disabled = !usable;
+
+  const sig = `${fills.join(',')}|${cost}|${afford}|${cd}|${usable}`;
+  if (lastTileSig.get(id) === sig) return;
+  lastTileSig.set(id, sig);
+  el.querySelector('.arcs').innerHTML = ringArcs(fills, color);
+  el.classList.toggle('poor', !afford);
+  el.classList.toggle('unusable', !usable);
+  el.classList.toggle('maxed', cost == null);
+  el.querySelector('.tile-cd').classList.toggle('hidden', cd === 0);
+  el.querySelector('.cd-chip span').textContent = `${cd}s`;
+  el.querySelector('.cost span').textContent = cost == null ? 'MAX' : cost;
+  const name = SHOP_ITEMS.find((x) => x.id === id).name;
+  el.setAttribute('aria-label', `${name}, ${cost == null ? 'maxed' : `${cost} gold`}`
+    + `${cost != null && !afford ? ', not enough gold' : ''}${cd ? ', recharging' : ''}`);
 }
 
 export function updateHud({ snap, you, mode, lock, hiddenOres, danger }) {
@@ -144,6 +207,7 @@ export function updateHud({ snap, you, mode, lock, hiddenOres, danger }) {
     }
     lastHp[side] = p.hp;
   }
+  $('#opp-gold-pill').setAttribute('aria-label', `Opponent's gold: ${op.gold}`);
   const statusSig = `${Math.ceil(me.frost)}|${Math.ceil(me.fog)}|${Math.ceil(op.frost)}|${Math.ceil(op.fog)}`;
   if (statusSig !== lastStatusSig) {
     lastStatusSig = statusSig;
@@ -151,82 +215,40 @@ export function updateHud({ snap, you, mode, lock, hiddenOres, danger }) {
     $('#opp-status').innerHTML = statusTags(op);
   }
 
-  // Opponent stance: "mining" is the cue to attack.
-  const oppUlt = Math.floor((op.ult / ULT_MAX) * 100);
-  const oppSig = `${op.mode}|${oppUlt}`;
-  if (oppSig !== lastOppSig) {
-    lastOppSig = oppSig;
-    const oppMode = $('#opp-mode');
-    oppMode.className = `opp-mode ${op.mode}`;
-    oppMode.innerHTML = op.mode === 'fight'
-      ? `${icon('sword', { size: 18 })}DEFENDING`
-      : `${icon('pickaxe', { size: 18, width: 2.6 })}MINING · open to attack`;
-    const ult = $('#opp-ult');
-    ult.classList.toggle('ready', oppUlt >= 100);
-    ult.innerHTML = `${icon('bolt', { size: 16, fill: '#F2B705', stroke: '#2B2118', width: 2 })}${oppUlt >= 100 ? 'READY' : `${oppUlt}%`}`;
-    ult.title = 'Opponent Lightning charge';
+  // Lightning: a gold line tucked under each HP bar.
+  for (const [sel, p] of [['#ult', me], ['#opp-ult', op]]) {
+    const pct = Math.min(100, Math.floor((p.ult / ULT_MAX) * 100));
+    $(`${sel}-fill`).style.width = `${pct}%`;
+    $(sel).classList.toggle('ready', pct >= 100);
   }
+  $('#ult').setAttribute('aria-label', `Your Lightning ${Math.min(100, Math.floor((me.ult / ULT_MAX) * 100))}%, press Enter when full`);
+
+  // Opponent stance: their miner swings and their lamps glow while they mine. That's the cue to attack.
+  $('#opp-mine').classList.toggle('active', op.mode === 'gather');
+  $('#opp-mine').setAttribute('aria-label', op.mode === 'gather' ? 'Opponent is mining right now' : 'Opponent is defending');
 
   $('#timer').textContent = fmtTime(snap.time);
-  const phase = $('#overtime');
-  phase.classList.toggle('ot', snap.overtime);
-  phase.textContent = snap.suddenDeath ? 'SUDDEN DEATH'
-    : snap.overtime ? 'OVERTIME · INCOME ×2' : `Overtime in ${fmtTime(Math.max(0, OVERTIME_AT - snap.time))}`;
+  $('.timer-tab').classList.toggle('ot', snap.overtime || snap.suddenDeath);
   $('#vignette').classList.toggle('hidden', !snap.overtime);
   $('#fog-mist').classList.toggle('hidden', !(me.fog > 0));
 
-  // Stance
-  const warn = mode !== 'fight' && danger > 0;
-  for (const el of document.querySelectorAll('.mode-btn')) {
-    const m = el.dataset.mode;
-    el.classList.toggle('active', m === mode);
-    el.classList.toggle('warn', m === 'fight' && warn);
-    el.querySelector('.mode-label').textContent = m === 'fight' && warn
-      ? `${danger} mob${danger > 1 ? 's' : ''} at your gate`
-      : m === 'fight' ? 'Fight' : 'Gather';
-  }
-  $('#gate-alert').classList.toggle('hidden', !warn);
-  $('#mine').classList.toggle('inactive', mode !== 'gather');
-  $('#mine-hint').textContent = me.pressured ? 'under pressure · +50% passive income'
-    : mode === 'gather' ? 'type a word to mine it' : 'paused while you fight';
+  $('#gate-alert').classList.toggle('hidden', !(mode !== 'fight' && danger > 0));
+  $('#mine-hint').textContent = me.pressured ? 'Under pressure · +50% income' : '';
 
   // Combo
   const comboEl = $('#combo');
   comboEl.textContent = `×${comboMultiplier(me.combo).toFixed(1)}`;
-  $('#combo-n').textContent = me.combo;
+  comboEl.classList.toggle('hidden', me.combo === 0);
   if (me.combo > lastCombo) {
     comboEl.classList.add('bump');
     setTimeout(() => comboEl.classList.remove('bump'), 100);
   }
   lastCombo = me.combo;
 
-  // Ultimate
-  const pct = Math.min(100, Math.floor((me.ult / ULT_MAX) * 100));
-  $('#ult-ring').style.setProperty('--pct', `${pct}%`);
-  $('#ult-pct').textContent = pct >= 100 ? 'READY' : `${pct}%`;
-  $('#ult').classList.toggle('ready', me.ult >= ULT_MAX);
-
-  // Shop affordability
-  for (const el of document.querySelectorAll('.shop-item')) {
-    const id = el.dataset.id;
-    const cost = itemCost(id, me);
-    const charge = me.charges[id];
-    const cooldown = id === 'frost' ? me.frostCd : id === 'repair' ? me.repairCd : 0;
-    const disabled = (id === 'repair' && (snap.suddenDeath || me.hp >= BASE_HP)) || charge?.n === 0 || cooldown > 0;
-    const pick = SPELLS[id]?.costs && cost != null ? `Lv${me[id] + 1} · ` : '';
-    el.disabled = cost == null || me.gold < cost || disabled;
-    el.querySelector('.availability').textContent = charge
-      ? `${charge.n}/${MOBS[id].charges}${charge.n < MOBS[id].charges ? ` · ${Math.ceil((1 - charge.progress) * charge.recharge)}s` : ''}`
-      : cooldown > 0 ? `${Math.ceil(cooldown)}s cooldown` : '';
-    el.style.setProperty('--recharge', `${charge && charge.n < MOBS[id].charges ? charge.progress * 100 : 0}%`);
-    el.querySelector('.pips').textContent = SPELLS[id]?.costs
-      ? SPELLS[id].costs.map((_, i) => i < me[id] ? '●' : '○').join(' ') : '';
-    el.querySelector('.cost').textContent = cost == null ? 'MAX' : `${pick}${cost} ◆`;
-    el.classList.toggle('maxed', cost == null);
-    el.classList.toggle('poor', cost == null || me.gold < cost || disabled);
-  }
+  for (const el of document.querySelectorAll('.tile')) updateTile(el, me, snap);
 
   renderOres(me, lock, hiddenOres);
+  renderOppRocks(op);
 }
 
 function renderOres(me, lock, hiddenOres) {
@@ -257,14 +279,24 @@ function renderOres(me, lock, hiddenOres) {
     el.classList.toggle('locked', lockOre?.id === ore.id);
     const done = ore.word.slice(0, typed);
     const gain = Math.round(ore.word.length * GOLD_PER_CHAR * mult * (ore.diamond ? DIAMOND_MULT : ore.golden ? GOLDEN_MULT : 1));
+    const left = ore.ttl == null ? 0 : Math.round((ore.ttl / (ore.diamond ? DIAMOND_TTL : GOLDEN_TTL)) * 100);
     el.innerHTML = '<div class="ore-face"><span class="w">'
       + (done ? `<span class="t-done">${done}</span>` : '')
       + `<span>${ore.word.charAt(typed)}</span><span class="far">${ore.word.slice(typed + 1)}</span></span>`
-      + `<span class="gain">+${gain}${gem(15)}`
-      + (ore.ttl != null ? `<span class="ttl">×${ore.diamond ? DIAMOND_MULT : GOLDEN_MULT} · ${Math.ceil(ore.ttl)}s</span>` : '')
+      + `<span class="gain">+${gain}`
+      + (ore.ttl != null ? `<span class="ttl" style="--left:${left}%" aria-label="crumbles in ${Math.ceil(ore.ttl)} seconds"></span>` : '')
       + '</span></div>';
   }
   for (const [id, el] of existing) if (!keep.has(id)) el.remove();
+}
+
+/** The opponent's ores as bare rocks: you see what they're digging, not the words. */
+function renderOppRocks(op) {
+  const sig = op.ores.map((o) => `${o.id}${o.golden ? 'g' : ''}${o.diamond ? 'd' : ''}`).join(',');
+  if (sig === lastRockSig) return;
+  lastRockSig = sig;
+  $('#opp-rocks').innerHTML = op.ores.map((o) => `<div class="ore${o.id % 2 ? ' blue' : ''}`
+    + `${o.golden ? ' golden' : ''}${o.diamond ? ' diamond' : ''}"><div class="ore-face"></div></div>`).join('');
 }
 
 /** Floating "+N◆" over the mine panel. */
