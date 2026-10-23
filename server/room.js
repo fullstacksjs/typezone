@@ -1,22 +1,25 @@
 import { TICK_MS, COUNTDOWN_SECONDS, BOT_LEVELS } from '../shared/config.js';
 import { Game } from './game.js';
 import { Bot } from './bot.js';
+import { Tutorial } from './tutorial.js';
 
 const BOT_NAMES = { easy: 'Bot (Easy)', normal: 'Bot (Normal)', hard: 'Bot (Hard)' };
 
 /** A 1v1 room: lobby, countdown, match loop and rematches. */
 export class Room {
-  constructor(code, { bot = null } = {}, onEmpty) {
+  constructor(code, { bot = null, tutorial = false } = {}, onEmpty) {
     this.code = code;
     this.onEmpty = onEmpty;
     this.seats = { p1: null, p2: null }; // { ws, name } | { bot: true, name }
     this.state = 'waiting';
     this.game = null;
     this.bot = null;
+    this.tutorial = tutorial;
     this.botLevel = bot && BOT_LEVELS[bot] ? bot : bot ? 'normal' : null;
     this.rematch = new Set();
     this.timer = null;
     if (this.botLevel) this.seats.p2 = { bot: true, name: BOT_NAMES[this.botLevel] };
+    if (tutorial) this.seats.p2 = { bot: true, name: 'Tutorial guide' };
   }
 
   get full() {
@@ -43,7 +46,7 @@ export class Room {
       t: 'lobby',
       code: this.code,
       state: this.state,
-      practice: !!this.botLevel,
+      practice: !!this.botLevel || this.tutorial,
       players: Object.fromEntries(
         Object.entries(this.seats).map(([s, seat]) => [s, seat ? { name: seat.name, bot: !!seat.bot } : null]),
       ),
@@ -100,10 +103,11 @@ export class Room {
 
   startMatch() {
     this.state = 'playing';
-    this.game = new Game();
+    this.game = this.tutorial ? new Tutorial() : new Game();
     this.bot = this.botLevel ? new Bot(this.game, 'p2', this.botLevel) : null;
     this.broadcast({
       t: 'start',
+      tutorial: this.tutorial,
       names: { p1: this.seats.p1?.name, p2: this.seats.p2?.name },
     });
     let last = performance.now();

@@ -166,7 +166,9 @@ function updateTile(el, me, snap) {
   }
   const afford = cost != null && me.gold >= cost;
   const blocked = id === 'repair' && (snap.suddenDeath || me.hp >= BASE_HP);
-  const usable = afford && cd === 0 && !blocked;
+  const lesson = snap.tutorial;
+  const allowed = !lesson || (lesson.item === id && (lesson.id !== 'upgrade' || me.mode === 'gather'));
+  const usable = afford && cd === 0 && !blocked && allowed;
   el.disabled = !usable;
 
   const sig = `${fills.join(',')}|${cost}|${afford}|${cd}|${usable}`;
@@ -227,7 +229,7 @@ export function updateHud({ snap, you, mode, lock, hiddenOres, danger }) {
   $('#opp-mine').classList.toggle('active', op.mode === 'gather');
   $('#opp-mine').setAttribute('aria-label', op.mode === 'gather' ? 'Opponent is mining right now' : 'Opponent is defending');
 
-  $('#timer').textContent = fmtTime(snap.time);
+  $('#timer').textContent = snap.tutorial ? 'Tutorial' : fmtTime(snap.time);
   $('.timer-tab').classList.toggle('ot', snap.overtime || snap.suddenDeath);
   $('#vignette').classList.toggle('hidden', !snap.overtime);
   $('#fog-mist').classList.toggle('hidden', !(me.fog > 0));

@@ -90,7 +90,7 @@ wss.on('connection', (ws) => {
     }
     if (!msg || typeof msg.t !== 'string') return;
 
-    if (msg.t === 'create' || msg.t === 'practice' || msg.t === 'join') {
+    if (msg.t === 'create' || msg.t === 'practice' || msg.t === 'tutorial' || msg.t === 'join') {
       ws.room?.leave(ws);
       ws.room = null;
       let room;
@@ -99,7 +99,8 @@ wss.on('connection', (ws) => {
         if (!room) return send({ t: 'error', msg: 'Room not found. Check the code.' });
         if (room.full) return send({ t: 'error', msg: 'That room is already full.' });
       } else {
-        room = createRoom(msg.t === 'practice' ? { bot: String(msg.difficulty ?? 'normal') } : {});
+        room = createRoom(msg.t === 'tutorial' ? { tutorial: true }
+          : msg.t === 'practice' ? { bot: String(msg.difficulty ?? 'normal') } : {});
       }
       room.join(ws, cleanName(msg.name));
       ws.room = room;

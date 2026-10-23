@@ -38,6 +38,8 @@ npm test
 
 Create a room and share the link or 4-letter code, or play **Practice vs bot** (easy / normal / hard).
 
+New players can choose **Learn by playing** for a guided tutorial on the real battlefield. Short popovers point to each target, with an overlay that spotlights the active word or control. Mine two words, send a goblin, switch to defense, defeat an enemy, fire Lightning, and buy a Pickaxe. Each step waits for the required action. Enemies stop before your base, and there is no time limit. Finish by starting an easy bot match or returning to the lobby.
+
 ## Layout
 
 - `server/game.js`: authoritative match simulation (economy, mobs, spells, win conditions)
