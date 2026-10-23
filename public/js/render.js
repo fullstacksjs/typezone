@@ -583,11 +583,12 @@ export class Renderer {
     }
   }
 
-  /** Opponent's typing progress on one of our units: a little bar over its head. */
+  /** Remaining health across all words on one of our units. */
   drawProgress(m, x, y) {
     const { ctx, ls } = this;
     const word = m.words[m.wi];
-    const pct = word ? Math.min(1, m.typed / word.length) : 0;
+    const damage = m.wi + (word ? Math.max(0, Math.min(1, m.typed / word.length)) : 0);
+    const pct = m.words.length ? Math.max(0, 1 - damage / m.words.length) : 0;
     const bw = 48 * ls;
     const bh = 9 * ls;
     ctx.beginPath();
@@ -597,7 +598,7 @@ export class Renderer {
     if (pct > 0) {
       ctx.save();
       ctx.clip();
-      ctx.fillStyle = C.opp;
+      ctx.fillStyle = C.me;
       ctx.fillRect(x - bw / 2, y, bw * pct, bh);
       ctx.restore();
     }
