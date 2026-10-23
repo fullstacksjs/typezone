@@ -22,7 +22,7 @@
   --body: Nunito, system-ui, -apple-system, 'Segoe UI', sans-serif;
   --mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
   --hud-h: clamp(76px, 9.3vh, 100px);
-  --console-h: clamp(196px, 26vh, 280px);
+  --console-h: clamp(260px, 32vh, 320px);
 }
 
 * { box-sizing: border-box; }
@@ -560,11 +560,16 @@ input:focus, select:focus { box-shadow: 0 0 0 4px rgba(47, 111, 224, 0.35); }
   .vig, .opp-mode.gather, .mode-btn.warn, .ult.ready .ult-ring, .count { animation: none; }
 }
 
+.ore.diamond .ore-face { background: #a8efff; box-shadow: inset 0 0 12px #fff; }
 .shop-item { background-image: linear-gradient(to right, #b8dda6 var(--recharge, 0%), transparent var(--recharge, 0%)); }
 .shop-item .availability, .shop-item .pips { font-size: 11px; }
 .shop-item .availability:empty, .shop-item .pips:empty { display: none; }
+.shop-item[data-id='luck'] { grid-column: 3 / span 2; grid-row: 3; }
 
 .shop-grid { grid-auto-rows: minmax(0, 1fr); }
 .shop-item .availability { white-space: nowrap; }
+.ore.golden .ore-face, .ore.diamond .ore-face { flex-direction: column; justify-content: center; gap: 4px; }
+.ore.golden .w, .ore.diamond .w { font-size: clamp(13px, 1.1vw, 20px); }
+.ore.golden .gain, .ore.diamond .gain, .ore .ttl { font-size: 12px; }
 
 .shop-item .txt { line-height: 1.1; }

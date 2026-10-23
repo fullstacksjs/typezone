@@ -52,9 +52,9 @@ function noise({ dur = 0.2, vol = 0.3, filter = 800 }) {
 export const sfx = {
   key: (pitch = 0) => tone({ freq: 600 + pitch * 30, dur: 0.035, type: 'triangle', vol: 0.12 }),
   miss: () => tone({ freq: 140, to: 90, dur: 0.12, type: 'sawtooth', vol: 0.2 }),
-  coin: (golden) => {
+  coin: (golden, diamond = false) => {
     tone({ freq: 988, dur: 0.07, type: 'square', vol: 0.12 });
-    tone({ freq: golden ? 1760 : 1319, dur: 0.18, type: 'square', vol: 0.12, delay: 0.07 });
+    tone({ freq: diamond ? 2349 : golden ? 1760 : 1319, dur: 0.18, type: 'square', vol: 0.12, delay: 0.07 });
   },
   armor: () => tone({ freq: 900, to: 500, dur: 0.1, type: 'square', vol: 0.15 }),
   kill: () => {

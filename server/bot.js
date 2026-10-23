@@ -87,7 +87,7 @@ export class Bot {
     const ores = this.me.ores;
     let ore = ores.find((o) => o.id === this.oreId);
     if (!ore) {
-      ore = ores.find((o) => o.golden) ?? ores[(Math.random() * ores.length) | 0];
+      ore = ores.find((o) => o.diamond) ?? ores.find((o) => o.golden) ?? ores[(Math.random() * ores.length) | 0];
       if (!ore) return;
       this.oreId = ore.id;
       this.oreTyped = 0;
@@ -108,6 +108,11 @@ export class Bot {
     }
     if (threats.length >= 4 && me.frostCd <= 0 && me.gold >= SPELLS.frost.cost) {
       return game.buy(this.slot, 'frost');
+    }
+    for (const upgrade of ['luck']) {
+      const cost = SPELLS[upgrade].costs[me[upgrade]];
+      const useful = game.time < 150;
+      if (useful && cost != null && me.gold >= cost && Math.random() < 0.25) return game.buy(this.slot, upgrade);
     }
     const pick = pickaxeCost(me.pickaxe);
     if (pick != null && me.pickaxe < 2 && game.time < 120 && me.gold >= pick && Math.random() < 0.4) {
