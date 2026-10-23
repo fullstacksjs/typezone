@@ -502,6 +502,7 @@ export class Renderer {
     const fogged = snap.players[this.you].fog > 0;
     const fight = view.mode === 'fight';
     this.mobPos.clear();
+    this.tutorialAnchor = null;
 
     const sorted = [...mobs].sort((a, b) => a.lane - b.lane);
     for (const m of sorted) {
@@ -575,6 +576,9 @@ export class Renderer {
     }
     for (const l of placed) if (l.locked) this.drawReticle(this.sx(l.m.dx), l.mobY, l.size, now);
     for (const l of [...placed].reverse()) {
+      if (snap.tutorial?.id === 'defend' && (!this.tutorialAnchor || l.locked)) {
+        this.tutorialAnchor = { x: l.x - l.bw / 2, y: l.y - l.bh / 2, width: l.bw, height: l.bh, word: l.word, enemyBottom: l.mobY };
+      }
       this.drawLabel(l, { active: fight, fogged, now });
     }
   }

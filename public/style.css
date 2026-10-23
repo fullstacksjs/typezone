@@ -57,6 +57,62 @@ kbd {
 }
 
 .hidden { display: none !important; }
+.tutorial-start { background: var(--gold-light); }
+.tutorial-note { font-size: 13px; color: var(--earth); }
+/* Tutorial lives above the game without changing its layout or controls. */
+#tutorial {
+  position: fixed;
+  inset: 0;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  border: 0;
+  overflow: visible;
+  background: transparent;
+  color: var(--ink);
+  pointer-events: none;
+}
+.tutorial-overlay { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+#tutorial-shade { fill: rgba(18, 13, 9, 0.72); pointer-events: fill; }
+#tutorial-spotlight {
+  position: fixed;
+  border: 3px solid var(--gold-light);
+  border-radius: 12px;
+  box-shadow: 0 0 0 3px rgba(255, 211, 77, 0.2);
+  pointer-events: none;
+}
+#tutorial-card {
+  position: fixed;
+  width: min(280px, calc(100vw - 24px));
+  padding: 16px 20px;
+  background: var(--parchment);
+  border: 3px solid var(--ink);
+  border-radius: 14px;
+  box-shadow: 0 5px 0 var(--ink);
+  pointer-events: auto;
+}
+#tutorial-card::before {
+  content: '';
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  background: var(--parchment);
+  border: 3px solid var(--ink);
+  transform: rotate(45deg);
+}
+#tutorial-card[data-side="above"]::before { bottom: -10px; left: var(--arrow-x); border-top: 0; border-left: 0; }
+#tutorial-card[data-side="below"]::before { top: -10px; left: var(--arrow-x); border-bottom: 0; border-right: 0; }
+#tutorial-card[data-side="center"]::before { display: none; }
+#tutorial-progress { font-size: 12px; color: var(--me-deep); font-weight: 900; }
+#tutorial-title { margin: 4px 12px 10px 0; font-size: 24px; }
+#tutorial-instruction { margin: 0; font-size: 14px; }
+#tutorial-key { max-width: 100%; height: auto; min-height: 26px; overflow-wrap: anywhere; }
+.tutorial-close { position: absolute; top: 6px; right: 8px; border: 0; background: none; font-size: 24px; color: var(--earth); cursor: pointer; }
+#tutorial-complete { display: grid; gap: 10px; }
+#tutorial-card button:focus-visible { outline: 3px solid var(--me); outline-offset: 3px; }
 .muted { color: var(--earth); }
 .gold { color: #9A6B00; font-weight: 900; }
 .error { color: var(--danger); font-weight: 800; min-height: 1.2em; }

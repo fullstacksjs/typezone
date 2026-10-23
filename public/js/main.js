@@ -1,5 +1,6 @@
 import { BASE_HP, LANE_LENGTH, MOBS, SPELLS, ULT_MAX, comboMultiplier } from '/shared/config.js';
 import { Renderer } from './render.js';
+import { TutorialOverlay } from './tutorial.js';
 import { sfx, unlockAudio, toggleMute, isMuted } from './audio.js';
 import { icon } from './icons.js';
 import {
@@ -28,6 +29,7 @@ const opp = () => (S.you === 'p1' ? 'p2' : 'p1');
 const me = () => S.snap?.players[S.you];
 
 const renderer = new Renderer($('#field'));
+const tutorial = new TutorialOverlay();
 
 // ------------------------------------------------------------ network
 function connect() {
@@ -90,7 +92,7 @@ function onMessage(msg) {
       break;
     case 'start':
       S.names = msg.names;
-      startMatch();
+      startMatch(msg.tutorial);
       break;
     case 'state':
       onSnapshot(msg);
@@ -124,12 +126,13 @@ function onMessage(msg) {
 }
 
 function enterGameScreen() {
+  document.activeElement?.blur();
   showScreen('game');
   renderer.resize();
   $('#mine').setAttribute('aria-label', `${S.names[S.you]}'s mine`);
 }
 
-function startMatch() {
+function startMatch(tutorial = false) {
   enterGameScreen();
   $('#countdown').classList.add('hidden');
   $('#end').classList.add('hidden');
@@ -143,7 +146,7 @@ function startMatch() {
   S.oppTyped.clear();
   resetHud();
   sfx.count(true);
-  showAlert('FIGHT! Mine gold and send your army', 'mine', 1600, 1, 'sword');
+  if (!tutorial) showAlert('FIGHT! Mine gold and send your army', 'mine', 1600, 1, 'sword');
 }
 
 // ------------------------------------------------------------ snapshots
@@ -285,6 +288,8 @@ function findTarget(ch) {
 }
 
 function typeChar(ch) {
+  const lesson = S.snap?.tutorial;
+  if (lesson && !['mine', 'defend'].includes(lesson.id)) return;
   if (!S.lock) {
     const target = findTarget(ch);
     if (!target) return miss();
@@ -336,6 +341,9 @@ function miss() {
 }
 
 function setMode(mode) {
+  const lesson = S.snap?.tutorial;
+  if (lesson && !((lesson.id === 'switch' && mode === 'fight')
+    || (lesson.id === 'upgrade' && mode === 'gather'))) return;
   if (mode === S.mode) return;
   S.mode = mode;
   S.modeAt = performance.now();
@@ -347,6 +355,8 @@ function setMode(mode) {
 function buy(id) {
   const p = me();
   if (!S.playing || !p) return;
+  const lesson = S.snap?.tutorial;
+  if (lesson && (lesson.item !== id || (lesson.id === 'upgrade' && S.mode !== 'gather'))) return;
   const cost = itemCost(id, p);
   const ok = cost != null && p.gold >= cost && p.charges[id]?.n !== 0
     && !(id === 'frost' && p.frostCd > 0)
@@ -364,6 +374,7 @@ const KEY_TO_ITEM = Object.fromEntries(SHOP_ITEMS.map((it) => [it.key, it.id]));
 
 document.addEventListener('keydown', (e) => {
   if (!S.playing || !$('#game').classList.contains('active')) return;
+  if (e.target.closest('button, input, select, textarea')) return;
   if (e.ctrlKey || e.metaKey || e.altKey) return;
   unlockAudio();
 
@@ -379,6 +390,7 @@ document.addEventListener('keydown', (e) => {
   }
   if (e.key === 'Enter') {
     e.preventDefault();
+    if (S.snap?.tutorial && S.snap.tutorial.id !== 'lightning') return;
     if ((me()?.ult ?? 0) >= ULT_MAX) send({ t: 'ult' });
     else sfx.denied();
     return;
@@ -422,6 +434,10 @@ function frame(now) {
   }
   const combo = S.snap ? `×${comboMultiplier(me().combo).toFixed(1)}` : null;
   renderer.draw({ snap: S.snap, mobs, lock: S.lock, mode: S.mode, combo, now }, dt);
+  if (S.snap?.tutorial && $('#game').classList.contains('active')) {
+    tutorial.update({ lesson: S.snap.tutorial, player: me(), mode: S.mode, lock: S.lock, hiddenOres: S.hiddenOres, renderer });
+    if (S.snap.tutorial.id === 'done') S.playing = false;
+  } else tutorial.hide();
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
@@ -459,11 +475,21 @@ $('#join-code').addEventListener('keydown', (e) => {
   if (e.key === 'Enter') $('#btn-join').click();
 });
 $('#btn-practice').addEventListener('click', () => lobbyAction({ t: 'practice', difficulty: $('#bot-level').value }));
+$('#btn-tutorial').addEventListener('click', () => lobbyAction({ t: 'tutorial' }));
+
+$('#btn-tutorial-exit').addEventListener('click', leaveRoom);
+$('#btn-tutorial-lobby').addEventListener('click', leaveRoom);
+$('#btn-tutorial-practice').addEventListener('click', () => {
+  leaveRoom();
+  lobbyAction({ t: 'practice', difficulty: 'easy' });
+});
 
 function leaveRoom() {
   S.playing = false;
   S.you = null;
   S.snap = null;
+  S.lock = null;
+  tutorial.hide();
   if (S.ws) {
     const ws = S.ws;
     S.ws = null;
