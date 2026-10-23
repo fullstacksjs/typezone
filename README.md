@@ -2,8 +2,8 @@
 
 A real-time 1v1 typing battle. Each player has a base and two modes:
 
-- **⛏ Gather**: type ore words to mine gold. Clean streaks build a combo multiplier (up to 2.5x). Golden ore pays 3x but crumbles after 7 seconds. Luck can unlock diamond ore, which pays 5x and also lasts 7 seconds.
-- **⚔ Fight**: type the words floating above incoming mobs to destroy them before they reach your base. Kills pay a bounty and charge your ⚡ Lightning.
+- **Gather**: type ore words to mine gold. Clean streaks build a combo multiplier (up to 2.5x). Golden ore pays 3x but crumbles after 7 seconds. Luck can unlock diamond ore, which pays 5x and also lasts 7 seconds.
+- **Fight**: type the words floating above incoming mobs to destroy them before they reach your base. Kills pay a bounty and charge your Lightning.
 
 Spend gold to send mobs at your opponent or to cast spells:
 

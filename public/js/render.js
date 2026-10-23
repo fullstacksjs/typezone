@@ -1,4 +1,4 @@
-import { LANE_LENGTH, LANES, BASE_HP } from '/shared/config.js';
+import { LANE_LENGTH, BASE_HP } from '/shared/config.js';
 
 const C = {
   ink: '#2B2118',
@@ -15,12 +15,14 @@ const MONO = "'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace";
 const BODY = 'Nunito, system-ui, sans-serif';
 const DISPLAY = "'Lilita One', Nunito, system-ui, sans-serif";
 
-// Art is specified against a 700px-tall field and scaled to the real height.
-const REF_H = 700;
-const LANE_TOP = 250;
-const LANE_BOTTOM = 590;
-const LANE_INSET = 200; // where the lane meets each base
-const MOB_PX = { goblin: 56, knight: 68, slime: 60, slimelet: 40, giant: 104 };
+// Art is specified against the 548px-tall surface of a 1080p screen and scaled to the real height.
+const REF_H = 548;
+const SKY_H = 150;
+// Two roads: your units walk the attack road to their castle, theirs walk the defend road to yours.
+const ROAD = { attack: 280, defend: 450 };
+const ROAD_EDGE = 120; // roads stop this far from each screen edge
+const LANE_INSET = 245; // where a road meets each castle
+const MOB_PX = { goblin: 54, knight: 64, slime: 56, slimelet: 40, giant: 96 };
 const DANGER_DIST = 0.22;
 
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -61,36 +63,33 @@ function paint(ctx, shapes, tint = null) {
 const ink = (d, fill, lw = 5) => ({ d, fill, stroke: C.ink, lw });
 const line = (d, stroke, lw) => ({ d, stroke, lw });
 
-// Bases: 240×420 art; mine has round towers and domes, theirs square towers and spires.
+// Castles: a 250×460 tree-stump hold, mirrored for the opponent. Team colour on roof and door; emblem shape differs.
+const stump = (team, emblem) => [
+  line('M40 384c-8 24-24 40-38 56M78 388c2 22-2 40-8 58M186 388c10 22 26 36 46 50M214 384c16 8 28 16 36 20', '#7A4E32', 13),
+  ink('M26 394c6-90 10-250 14-320 24-14 152-14 176 0 4 70 8 230 14 320z', '#9B6B43', 4),
+  line('M62 110c-4 80 0 190-2 280M118 100c4 90 0 200 2 292M172 106c-6 84 2 194 0 286', '#7A4E32', 4),
+  ink(ell(128, 74, 90, 16), '#D9B58A', 4),
+  line(ell(128, 74, 56, 9), '#B88A5A', 3),
+  ink('M70 72 128 4 186 72z', team, 4),
+  ink(emblem, C.cream, 2),
+  ink('M184 316v-26a24 24 0 0 1 48 0v26z', team, 4),
+  ink(ell(222, 302, 3.5), C.gold, 1.5),
+  ink(ell(58, 190, 8), C.gold, 2.5),
+  ink(ell(92, 290, 8), C.gold, 2.5),
+  line('M84 150l16 26-10 22', C.ink, 3),
+];
 const BASE_ART = {
-  me: [
-    ink(rr(30, 80, 180, 300, 12), '#D9CBB0'),
-    line('M30 110h180M30 170h180M30 230h180M30 290h180M30 350h180', '#B9A888', 3),
-    ink(rr(10, 40, 70, 350, 35), '#E6D9C0'),
-    ink('M10 80a35 35 0 0 1 70 0z', C.me),
-    ink(rr(160, 40, 70, 350, 35), '#E6D9C0'),
-    ink('M160 80a35 35 0 0 1 70 0z', C.me),
-    line('M195 45V0', C.ink, 4),
-    ink('M195 2h34l-8 10 8 10h-34z', C.me, 3),
-    ink('M150 300a40 40 0 0 1 80 0v80h-80z', '#5B3B25'),
-    ink(ell(120, 190, 26), C.me),
-    { d: ell(120, 190, 10), fill: C.cream },
-  ],
-  opp: [
-    ink(rr(30, 80, 180, 300, 6), '#CDBFA3'),
-    line('M30 110h180M30 170h180M30 230h180M30 290h180M30 350h180', '#AE9D7E', 3),
-    ink(rr(10, 60, 70, 330, 0), '#DACDB2'),
-    ink('M2 64 45 0 88 64z', C.opp),
-    ink(rr(160, 60, 70, 330, 0), '#DACDB2'),
-    ink('M152 64 195 6 238 64z', C.opp),
-    ink('M10 300a40 40 0 0 1 80 0v80H10z', '#5B3B25'),
-    ink('M120 164 96 206h48z', C.opp),
-  ],
+  me: stump(C.me, ell(128, 49, 9)),
+  opp: stump(C.opp, 'M128 38l10 18h-20z'),
 };
 const BASE_CRACKS = [
-  [line('M60 140l18 26-10 22', C.ink, 3), line('M200 130l-6 14 10 4', C.ink, 3)], // ≤70%
-  [line('M110 90l-14 40 22 22-10 40M180 200l-20 30 16 24M60 120l14 30', C.ink, 4)], // ≤40%
-  [line('M40 250l20 18-6 24 16 20M150 110l-12 26 14 18', C.ink, 4)], // ≤15%
+  [line('M84 150l16 26-10 22 12 20M160 230l-16 22 10 18M48 300l18 14-6 26', C.ink, 3.5)], // ≤70%
+  [line('M58 250l20 16-6 30M140 112l-10 26 14 22M196 300l-14 18', C.ink, 3.5)], // ≤30%
+];
+const BASE_FLAMES = [
+  ink('M66 90c-12-22 8-32 4-52 16 16 24 34 8 52z', '#F28C28', 2.5),
+  ink('M70 86c-4-10 4-16 2-24 8 8 10 18 2 24z', C.gold, 2.5),
+  ink('M168 128c-10-18 6-26 3-42 13 13 19 28 6 42z', '#F28C28', 2.5),
 ];
 
 /** Mob sprite in a 64×64 box, feet at y=60, facing right. `wi` = words already broken. */
@@ -103,8 +102,9 @@ function mobArt(type, team, incoming, wi) {
       o('M46 27 60 18 48 33z', '#7DBA4A');
       o(rr(20, 40, 24, 18, 7), team);
       o(ell(32, 30, 15), '#7DBA4A');
-      s.push({ d: ell(38, 28, 2.5), fill: C.ink });
-      s.push(line('M34 36q4 2 8-1', C.ink, 2.5));
+      o('M18 25a14 11 0 0 1 28 0z', team);
+      o(ell(39, 31, 2.5), C.gold);
+      o('M41 33l7 5-8 1z', '#5E9A3F');
       break;
     case 'knight':
       if (wi === 0) s.push(line('M30 14q10-10 18-2', team, 7));
@@ -144,9 +144,16 @@ function mobArt(type, team, incoming, wi) {
 }
 
 const RETICLE = 'M4 26V4h22M74 4h22v22M96 74v22H74M26 96H4V74';
-const SHIELD = 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z';
+const SHIELD = 'M12 24s9-4 9-11V5l-9-3-9 3v8c0 7 9 11 9 11z';
+const CHEVRON = { attack: 'M8 5l7 7-7 7', defend: 'M16 5l-7 7 7 7' };
+const BADGE_ICONS = {
+  attack: ['M5 12h13M13 6l6 6-6 6', 'M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4'],
+  defend: ['M19 12H6M11 6l-6 6 6 6'],
+};
 const STAR = 'M0-34 8-10 32-14 14 4 26 28 0 14-26 28-14 4-32-14-8-10z';
 const SNOW = 'M12 2v20M3.3 7l17.4 10M20.7 7 3.3 17';
+const DESIGN_W = 1920;
+const CLOUDS = [[330, 30, 140], [560, 70, 100], [1240, 36, 150], [1460, 80, 110]];
 
 /** Draws the battlefield. Always renders the local player's base on the left. */
 export class Renderer {
@@ -165,6 +172,7 @@ export class Renderer {
     this.baseFlash = { me: 0, opp: 0 };
     this.baseHeal = { me: 0, opp: 0 };
     this.mobPos = new Map();
+    this.missT = 0;
     this.ground = document.createElement('canvas');
     this.resize();
     window.addEventListener('resize', () => this.resize());
@@ -198,13 +206,14 @@ export class Renderer {
     return this.you === 'p1' ? this.baseW + t * span : this.w - this.baseW - t * span;
   }
 
-  laneY(lane) {
-    const { k } = this;
-    return LANES === 1 ? ((LANE_TOP + LANE_BOTTOM) / 2) * k : (LANE_TOP + (lane / (LANES - 1)) * (LANE_BOTTOM - LANE_TOP)) * k;
+  /** Ground line of a road: `incoming` mobs walk the defend road, ours the attack road. */
+  roadY(incoming) {
+    return (incoming ? ROAD.defend : ROAD.attack) * this.k;
   }
 
+  /** Where shots leave a castle: its side door. */
   baseX(side) {
-    return side === 'me' ? 110 * this.k : this.w - 110 * this.k;
+    return side === 'me' ? 232 * this.k : this.w - 232 * this.k;
   }
 
   side(slot) {
@@ -235,8 +244,8 @@ export class Renderer {
     }
   }
 
-  burstAtWorld(x, lane, color, n, speed) {
-    this.burst(this.sx(x), this.laneY(lane) - 24 * this.k, color, n, speed);
+  burstAtWorld(x, incoming, color, n, speed) {
+    this.burst(this.sx(x), this.roadY(incoming) - 24 * this.k, color, n, speed);
   }
 
   /** Kill pop: an inked star plus gold sparks. */
@@ -249,12 +258,22 @@ export class Renderer {
     this.floaters.push({ x, y, text, color, size, life: 1.1, max: 1.1 });
   }
 
-  floatAtWorld(x, lane, text, color) {
-    this.float(this.sx(x), this.laneY(lane) - 90 * this.k, text, color);
+  floatAtWorld(x, incoming, text, color) {
+    this.float(this.sx(x), this.roadY(incoming) - 90 * this.k, text, color);
   }
 
-  killAtWorld(x, lane, text) {
-    this.floatAtWorld(x, lane, text, C.gold);
+  killAtWorld(x, incoming, text) {
+    this.floatAtWorld(x, incoming, text, C.gold);
+  }
+
+  /** Damage and heal numbers sit on the castle that took them. */
+  floatAtBase(side, text, color, size) {
+    this.float(side === 'me' ? 130 * this.k : this.w - 130 * this.k, 340 * this.k, text, color, size);
+  }
+
+  /** A typo shakes the locked label red. */
+  miss() {
+    this.missT = 0.3;
   }
 
   bolt(fromSlot, mobId) {
@@ -262,10 +281,11 @@ export class Renderer {
     this.bolts.push({ side, mobId, life: 0.16, max: 0.16, seed: Math.random() * 100 });
   }
 
-  lightning(targets) {
+  /** `incoming`: the strikes land on mobs walking toward us. */
+  lightning(targets, incoming) {
     for (const tg of targets) {
       const x = this.sx(tg.x);
-      const y = this.laneY(tg.lane) - 30 * this.k;
+      const y = this.roadY(incoming) - 30 * this.k;
       this.strikes.push({ x, y, life: 0.5, max: 0.5, seed: Math.random() });
       this.stars.push({ x, y, life: 0.4, max: 0.4 });
       this.burst(x, y, C.gold, 14, 220);
@@ -298,13 +318,14 @@ export class Renderer {
     this.drawStrikes(dt);
     this.drawFloaters(dt);
     ctx.restore();
+    this.missT = Math.max(0, this.missT - dt);
     for (const k of ['me', 'opp']) {
       this.baseFlash[k] = Math.max(0, this.baseFlash[k] - dt * 3);
       this.baseHeal[k] = Math.max(0, this.baseHeal[k] - dt * 1.5);
     }
   }
 
-  /** Static scenery, lanes and gate zone, cached until the next resize. */
+  /** Static scenery, roads and gate zone, cached until the next resize. */
   paintGround() {
     const g = this.ground;
     g.width = Math.round(this.w * this.dpr);
@@ -315,78 +336,61 @@ export class Renderer {
 
     ctx.fillStyle = '#9BCB6A';
     ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = '#CDEBF2';
+    ctx.fillRect(0, 0, w, SKY_H * k);
     ctx.fillStyle = '#86BB58';
-    ctx.fillRect(0, 0, w, 150 * k);
-
-    // Tree line across the top strip, so wide screens never look empty.
-    let seed = 7;
-    const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
-    for (let x = -20 * k; x < w; x += rnd() * 120 * k + 110 * k) {
-      const s = (70 + rnd() * 40) * k;
-      const y = (4 + rnd() * 56) * k;
+    ctx.fillRect(0, (SKY_H - 12) * k, w, 14 * k);
+    for (const [cx, cy, cw] of CLOUDS) {
       ctx.beginPath();
-      ctx.arc(x + s / 2, y + s / 2, s / 2, 0, Math.PI * 2);
-      ctx.fillStyle = '#5E9A3F';
+      ctx.roundRect((cx / DESIGN_W) * w, cy * k, cw * k, 34 * k, 17 * k);
+      ctx.fillStyle = '#FFFFFF';
       ctx.fill();
-      ctx.save();
-      ctx.clip();
-      ctx.beginPath();
-      ctx.arc(x + s / 2 - 8 * k, y + s / 2 - 8 * k, s / 2, 0, Math.PI * 2);
-      ctx.rect(x - s, y - s, s * 3, s * 3);
-      ctx.fillStyle = '#4F8735';
-      ctx.fill('evenodd');
-      ctx.restore();
       ctx.lineWidth = 3 * k;
-      ctx.strokeStyle = '#3F6E2A';
-      ctx.beginPath();
-      ctx.arc(x + s / 2, y + s / 2, s / 2, 0, Math.PI * 2);
+      ctx.strokeStyle = '#A9D3DF';
       ctx.stroke();
     }
-    const flowers = ['#FFF8E8', '#FFD34D', '#F2A1C2'];
-    const nFlowers = Math.round(w / 70);
-    for (let i = 0; i < nFlowers; i++) {
-      const fx = this.baseW + rnd() * (w - this.baseW * 2);
-      const fy = (i % 2 ? 640 + (i % 3) * 14 : 160 + (i % 4) * 6) * k;
-      ctx.fillStyle = flowers[i % 3];
-      ctx.beginPath();
-      ctx.arc(fx, fy, 4 * k, 0, Math.PI * 2);
-      ctx.fill();
-    }
 
-    // Lanes: sandy paths with an inked rim.
-    const lx = 190 * k;
-    const lw = w - 380 * k;
-    for (let l = 0; l < LANES; l++) {
-      const y = this.laneY(l) - 34 * k;
-      const lh = 48 * k;
-      ctx.beginPath();
-      ctx.roundRect(lx, y, lw, lh, lh / 2);
+    // Roads: sandy strips with inked rims and chevrons pointing the way the units walk.
+    const lx = ROAD_EDGE * k;
+    const lw = w - ROAD_EDGE * 2 * k;
+    for (const road of ['attack', 'defend']) {
+      const y = (ROAD[road] - 36) * k;
+      const lh = 52 * k;
       ctx.fillStyle = '#E6C792';
-      ctx.fill();
-      ctx.save();
-      ctx.clip();
+      ctx.fillRect(lx, y, lw, lh);
       ctx.fillStyle = '#C9A66B';
-      ctx.fillRect(lx, y + lh - 5 * k, lw, 5 * k);
+      ctx.fillRect(lx, y + lh - 8 * k, lw, 5 * k);
+      ctx.fillStyle = '#B8925A';
+      ctx.fillRect(lx, y, lw, 3 * k);
+      ctx.fillRect(lx, y + lh - 3 * k, lw, 3 * k);
+      ctx.save();
+      ctx.globalAlpha = 0.55;
+      ctx.strokeStyle = road === 'attack' ? C.me : C.opp;
+      ctx.lineWidth = 4;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      for (let x = 330 * k; x < w - 280 * k; x += 130 * k) {
+        ctx.save();
+        ctx.translate(x, (ROAD[road] - 23) * k);
+        ctx.scale((26 * k) / 24, (26 * k) / 24);
+        ctx.stroke(P(CHEVRON[road]));
+        ctx.restore();
+      }
       ctx.restore();
-      ctx.lineWidth = 3 * k;
-      ctx.strokeStyle = '#B8925A';
-      ctx.beginPath();
-      ctx.roundRect(lx - 1.5 * k, y - 1.5 * k, lw + 3 * k, lh + 3 * k, lh / 2 + 1.5 * k);
-      ctx.stroke();
     }
 
-    // Gate zone: hatched stretch where incoming mobs turn dangerous.
-    const gx0 = 225 * k;
+    // Gate zone: hatched stretch of the defend road where incoming mobs turn dangerous.
+    const gx0 = LANE_INSET * k;
     const gx1 = this.baseW + DANGER_DIST * (w - this.baseW * 2);
-    const gy0 = this.laneY(0) - 80 * k;
-    const gy1 = this.laneY(LANES - 1) + 30 * k;
+    const gy0 = (ROAD.defend - 46) * k;
+    const gy1 = (ROAD.defend + 30) * k;
     ctx.save();
     ctx.beginPath();
-    ctx.rect(gx0, gy0, gx1 - gx0, gy1 - gy0);
+    ctx.roundRect(gx0, gy0, gx1 - gx0, gy1 - gy0, [0, 12 * k, 12 * k, 0]);
     ctx.clip();
-    ctx.strokeStyle = 'rgba(194,24,58,.16)';
-    ctx.lineWidth = 14 * k;
-    for (let d = -(gy1 - gy0); d < gx1 - gx0; d += 28 * k * Math.SQRT2) {
+    ctx.strokeStyle = 'rgba(194,24,58,.18)';
+    ctx.lineWidth = 12 * k;
+    for (let d = -(gy1 - gy0); d < gx1 - gx0; d += 24 * k * Math.SQRT2) {
       ctx.beginPath();
       ctx.moveTo(gx0 + d, gy1);
       ctx.lineTo(gx0 + d + (gy1 - gy0), gy0);
@@ -395,63 +399,76 @@ export class Renderer {
     ctx.restore();
     ctx.setLineDash([12 * k, 8 * k]);
     ctx.lineWidth = 4 * k;
-    ctx.strokeStyle = 'rgba(194,24,58,.7)';
+    ctx.strokeStyle = 'rgba(194,24,58,.75)';
     ctx.beginPath();
     ctx.moveTo(gx1, gy0);
     ctx.lineTo(gx1, gy1);
     ctx.stroke();
     ctx.setLineDash([]);
-    ctx.font = `900 ${Math.round(13 * this.ls)}px ${BODY}`;
-    const label = 'GATE ZONE';
-    const tw = ctx.measureText(label).width;
-    const px = 6 * this.ls;
-    const bx = gx1 - tw - px * 2 - 8 * k;
-    ctx.fillStyle = C.dangerBg;
-    ctx.beginPath();
-    ctx.roundRect(bx, gy0 + 4 * k, tw + px * 2, 20 * this.ls, 6);
-    ctx.fill();
-    ctx.fillStyle = '#8E1029';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(label, bx + px, gy0 + 4 * k + 10 * this.ls + 1);
+
+    // Lane badges at our castle's edge: which road is ours, which is theirs.
+    this.paintBadge(ctx, 262 * k, 214 * k, C.me, BADGE_ICONS.attack);
+    this.paintBadge(ctx, 252 * k, 488 * k, C.opp, BADGE_ICONS.defend);
   }
 
+  paintBadge(ctx, x, y, fill, icons) {
+    const s = this.k;
+    const ic = 16 * s;
+    const bw = (16 + 3 * 2) * s + icons.length * ic + (icons.length - 1) * 6 * s;
+    const bh = ic + 10 * s;
+    ctx.beginPath();
+    ctx.roundRect(x, y, bw, bh, 10 * s);
+    ctx.fillStyle = fill;
+    ctx.fill();
+    ctx.lineWidth = 3 * s;
+    ctx.strokeStyle = C.ink;
+    ctx.stroke();
+    ctx.strokeStyle = '#fff';
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    icons.forEach((d, i) => {
+      ctx.save();
+      ctx.translate(x + 11 * s + i * (ic + 6 * s), y + 5 * s);
+      ctx.scale(ic / 24, ic / 24);
+      ctx.lineWidth = 3.5;
+      ctx.stroke(P(d));
+      ctx.restore();
+    });
+  }
+
+  /** Frost tints the road its caster defends. */
   drawFrost(snap) {
-    const { ctx, w, h } = this;
+    const { ctx, w, k } = this;
     for (const slot of ['p1', 'p2']) {
       if (snap.players[slot].frost <= 0) continue;
-      const side = this.side(slot);
-      const x0 = side === 'me' ? 0 : w / 2;
-      const fg = ctx.createLinearGradient(x0, 0, x0 + w / 2, 0);
-      fg.addColorStop(side === 'me' ? 0 : 1, 'rgba(170,220,255,.45)');
-      fg.addColorStop(side === 'me' ? 1 : 0, 'rgba(170,220,255,0)');
-      ctx.fillStyle = fg;
-      ctx.fillRect(x0, 0, w / 2, h);
+      const y = this.roadY(this.side(slot) === 'me');
+      ctx.fillStyle = 'rgba(170,220,255,.45)';
+      ctx.fillRect(ROAD_EDGE * k, y - 80 * k, w - ROAD_EDGE * 2 * k, 112 * k);
     }
   }
 
   drawBase(side, p) {
     const { ctx, k } = this;
-    const x = side === 'me' ? -10 * k : this.w - 230 * k;
+    const flip = side === 'opp';
     const art = BASE_ART[side];
     const dmg = 1 - p.hp / BASE_HP;
     ctx.save();
-    ctx.translate(x, 190 * k);
-    ctx.scale(k, k);
+    ctx.translate(flip ? this.w : 0, SKY_H * k);
+    ctx.scale(flip ? -k : k, k);
     ctx.lineJoin = 'round';
     ctx.lineCap = 'round';
     paint(ctx, art);
     if (dmg >= 0.3) paint(ctx, BASE_CRACKS[0]);
-    if (dmg >= 0.6) paint(ctx, BASE_CRACKS[1]);
-    if (dmg >= 0.85) paint(ctx, BASE_CRACKS[2]);
-    if (dmg >= 0.6) {
-      // Smoke from the battlements once it's badly hurt.
+    if (dmg >= 0.7) paint(ctx, BASE_CRACKS[1].concat(BASE_FLAMES));
+    if (dmg >= 0.3) {
+      // Smoke from the roof once it's hurt.
       const t = performance.now() / 600;
       ctx.fillStyle = 'rgba(140,130,115,.7)';
-      for (let i = 0; i < (dmg >= 0.85 ? 4 : 2); i++) {
+      for (let i = 0; i < (dmg >= 0.7 ? 4 : 2); i++) {
         const ph = (t + i * 0.45) % 1;
         ctx.globalAlpha = 0.7 * (1 - ph);
         ctx.beginPath();
-        ctx.arc(70 + i * 30 + ph * 18, 40 - ph * 50, 10 + ph * 10, 0, Math.PI * 2);
+        ctx.arc(96 + i * 18 + ph * 18, -6 - ph * 50, 10 + ph * 10, 0, Math.PI * 2);
         ctx.fill();
       }
       ctx.globalAlpha = 1;
@@ -475,7 +492,7 @@ export class Renderer {
   }
 
   drawMobs(view) {
-    const { ctx } = this;
+    const { ctx, k } = this;
     const { mobs, lock, now, snap } = view;
     const fogged = snap.players[this.you].fog > 0;
     const fight = view.mode === 'fight';
@@ -483,33 +500,36 @@ export class Renderer {
 
     const sorted = [...mobs].sort((a, b) => a.lane - b.lane);
     for (const m of sorted) {
+      const incoming = m.target === this.you;
       const x = this.sx(m.dx);
-      const y = this.laneY(m.lane);
-      const size = (MOB_PX[m.type] ?? 56) * this.k;
+      const y = this.roadY(incoming);
+      const size = (MOB_PX[m.type] ?? 56) * k;
       this.mobPos.set(m.id, { x, y: y - size / 2 });
       const dir = m.vx > 0 === (this.you === 'p1') ? 1 : -1;
-      const incoming = m.target === this.you;
       const frozen = snap.players[m.target].frost > 0;
       this.drawMob(m, x, y, size, dir, incoming, frozen, now);
+      if (!incoming) this.drawProgress(m, x, y - size - 18 * k);
     }
 
-    // Labels sit on their own layer above all art. Same-lane neighbours that would
-    // overlap collapse into the front label's queue instead of stacking into towers.
+    // Labels sit on their own layer above all art, only for mobs coming at us. They zip
+    // above and below the road so a single file never stacks; a label with no room on
+    // either side collapses into its neighbour's queue.
     const labels = [];
     for (const m of sorted) {
-      const incoming = m.target === this.you;
+      if (m.target !== this.you) continue;
       const locked = !!lock && lock.kind === 'mob' && lock.id === m.id;
       const wi = locked ? lock.wi : m.wi;
       const word = m.words[wi];
       if (!word) continue;
-      const dist = incoming ? (this.you === 'p1' ? m.dx : LANE_LENGTH - m.dx) / LANE_LENGTH : 1;
-      const size = (MOB_PX[m.type] ?? 56) * this.k;
+      const dist = (this.you === 'p1' ? m.dx : LANE_LENGTH - m.dx) / LANE_LENGTH;
       const l = {
-        m, x: this.sx(m.dx), mobY: this.laneY(m.lane), size, word, incoming, locked,
+        m, x: this.sx(m.dx), mobY: this.roadY(true), size: (MOB_PX[m.type] ?? 56) * k, word, locked,
         extra: m.words.length - wi - 1,
-        typed: locked ? lock.typed : incoming ? 0 : m.typed,
-        danger: incoming && dist < DANGER_DIST,
-        priority: locked ? -1 : incoming ? dist : 2 + m.id * 1e-6,
+        typed: locked ? lock.typed : 0,
+        danger: dist < DANGER_DIST,
+        priority: locked ? -1 : dist,
+        up: m.id % 2 === 1,
+        combo: locked ? view.combo : null,
         queue: [],
       };
       this.measureLabel(l);
@@ -520,15 +540,19 @@ export class Renderer {
     const hidden = [];
     for (const l of labels) {
       l.x = Math.max(l.bw / 2 + 4, Math.min(this.w - l.bw / 2 - 4, l.x));
-      l.y = l.mobY - l.size - (l.incoming ? 12 : 8) * this.k - l.bh / 2;
-      const hit = placed.find((p) => Math.abs(l.x - p.x) < (l.bw + p.bw) / 2 + 4
-        && Math.abs(l.y - p.y) < (l.bh + p.bh) / 2 + 2);
+      let hit = null;
+      for (const up of [l.up, !l.up]) {
+        l.y = up ? l.mobY - l.size - 12 * k - l.bh / 2 : l.mobY + 14 * k + l.bh / 2;
+        hit = placed.find((p) => Math.abs(l.x - p.x) < (l.bw + p.bw) / 2 + 4
+          && Math.abs(l.y - p.y) < (l.bh + p.bh) / 2 + 2);
+        if (!hit) break;
+      }
       if (!hit) {
         placed.push(l);
         continue;
       }
       hidden.push(l);
-      if (l.incoming && hit.incoming && hit.queue.length < 3) {
+      if (hit.queue.length < 3) {
         hit.queue.push(l.word[0]);
         this.measureLabel(hit);
       }
@@ -537,7 +561,7 @@ export class Renderer {
     for (const l of hidden) {
       const r = 7 * this.ls;
       ctx.beginPath();
-      ctx.arc(l.x, l.mobY - l.size - 18 * this.k + r, r, 0, Math.PI * 2);
+      ctx.arc(l.x, l.mobY - l.size - 18 * k + r, r, 0, Math.PI * 2);
       ctx.fillStyle = C.cream;
       ctx.fill();
       ctx.lineWidth = 3;
@@ -546,49 +570,73 @@ export class Renderer {
     }
     for (const l of placed) if (l.locked) this.drawReticle(this.sx(l.m.dx), l.mobY, l.size, now);
     for (const l of [...placed].reverse()) {
-      this.drawLabel(l, { active: !l.incoming || fight, fogged: l.incoming && fogged, now });
+      this.drawLabel(l, { active: fight, fogged, now });
     }
+  }
+
+  /** Opponent's typing progress on one of our units: a little bar over its head. */
+  drawProgress(m, x, y) {
+    const { ctx, ls } = this;
+    const word = m.words[m.wi];
+    const pct = word ? Math.min(1, m.typed / word.length) : 0;
+    const bw = 48 * ls;
+    const bh = 9 * ls;
+    ctx.beginPath();
+    ctx.roundRect(x - bw / 2, y, bw, bh, 6 * ls);
+    ctx.fillStyle = C.cream;
+    ctx.fill();
+    if (pct > 0) {
+      ctx.save();
+      ctx.clip();
+      ctx.fillStyle = C.opp;
+      ctx.fillRect(x - bw / 2, y, bw * pct, bh);
+      ctx.restore();
+    }
+    ctx.lineWidth = 2.5;
+    ctx.strokeStyle = C.ink;
+    ctx.stroke();
   }
 
   /** Lays out a label's parts and stores its box size on it. */
   measureLabel(l) {
     const { ctx, ls } = this;
-    const kind = l.locked ? 'locked' : l.incoming ? 'in' : 'out';
-    const fs = { locked: 32, in: 24, out: 16 }[kind] * ls;
-    const padX = { locked: 14, in: 10, out: 8 }[kind] * ls;
-    const padY = { locked: 8, in: 6, out: 4 }[kind] * ls;
-    const border = { locked: 4, in: 3, out: 2 }[kind];
+    const kind = l.locked ? 'locked' : 'in';
+    const fs = { locked: 36, in: 26 }[kind] * ls;
+    const padX = { locked: 12, in: 10 }[kind] * ls;
+    const padY = { locked: 8, in: 6 }[kind] * ls;
+    const border = { locked: 4, in: 3 }[kind];
     const gap = 6 * ls;
     ctx.font = `800 ${fs}px ${MONO}`;
     const charW = ctx.measureText('m').width;
     const parts = [];
     if (l.danger) parts.push(['bang', 22 * ls]);
-    if (l.locked) parts.push(['ret', 22 * ls]);
-    parts.push(['word', charW * l.word.length + (l.typed > 0 && l.incoming ? 4 * ls : 0)]);
-    if (l.incoming && l.extra > 0) {
-      ctx.font = `900 ${15 * ls}px ${BODY}`;
-      parts.push(['armor', 13 * ls + 3 * ls + ctx.measureText(`+${l.extra}`).width + 12 * ls]);
-    }
+    parts.push(['word', charW * l.word.length + (l.typed > 0 ? 4 * ls : 0)]);
+    if (l.extra > 0) parts.push(['armor', l.extra * 16 * ls + (l.extra - 1) * 2 * ls]);
     if (l.queue.length) parts.push(['queue', 8 * ls + l.queue.length * 26 * ls + (l.queue.length - 1) * 4 * ls]);
+    if (l.combo) {
+      ctx.font = `${20 * ls}px ${DISPLAY}`;
+      parts.push(['combo', ctx.measureText(l.combo).width + 14 * ls]);
+    }
     const inner = parts.reduce((s, [, w]) => s + w, 0) + gap * (parts.length - 1);
     Object.assign(l, {
       kind, fs, padX, padY, border, gap, charW, parts,
       bw: inner + padX * 2 + border * 2,
-      bh: fs + padY * 2 + border * 2 + (kind === 'out' ? 0 : 4 * ls),
+      bh: fs + padY * 2 + border * 2 + 4 * ls,
     });
   }
 
   drawLabel(l, { active, fogged, now }) {
     const { ctx, ls } = this;
-    const { kind, fs, padX, border, gap, charW, bw, bh } = l;
-    const dim = l.incoming && !active && !l.danger && !l.locked;
+    const { fs, padX, border, gap, charW, bw, bh } = l;
+    const dim = !active && !l.danger && !l.locked;
+    const missed = l.locked && this.missT > 0;
     ctx.save();
-    ctx.translate(l.x, l.y);
+    ctx.translate(l.x + (missed ? Math.sin(this.missT * 90) * 4 : 0), l.y);
     if (l.danger && !reducedMotion.matches) {
       const s = 1 + 0.035 * (1 + Math.sin((now / 700) * Math.PI * 2));
       ctx.scale(s, s);
     }
-    ctx.globalAlpha = dim ? 0.5 : kind === 'out' ? 0.88 : 1;
+    ctx.globalAlpha = dim ? 0.5 : 1;
     const bx = -bw / 2;
     const by = -bh / 2;
     const radius = 12 * ls;
@@ -596,13 +644,9 @@ export class Renderer {
     let bg = C.cream;
     let edge = C.ink;
     let shadow = C.ink;
-    if (kind === 'out') {
-      bg = C.meDeep;
-      edge = '#A9C3F5';
-      shadow = null;
-    } else if (l.locked) {
-      edge = C.meDeep;
-      shadow = l.danger ? C.danger : C.meDeep;
+    if (l.locked) {
+      edge = missed ? C.danger : C.meDeep;
+      shadow = l.danger || missed ? C.danger : C.meDeep;
     } else if (l.danger) {
       bg = C.dangerBg;
       edge = C.danger;
@@ -610,7 +654,7 @@ export class Renderer {
     }
     if (dim) shadow = null;
     if (l.locked) {
-      ctx.fillStyle = l.danger ? 'rgba(194,24,58,.3)' : 'rgba(47,111,224,.25)';
+      ctx.fillStyle = l.danger || missed ? 'rgba(194,24,58,.3)' : 'rgba(47,111,224,.25)';
       ctx.beginPath();
       ctx.roundRect(bx - 6 * ls, by - 6 * ls, bw + 12 * ls, bh + 12 * ls + 5 * ls, radius + 6 * ls);
       ctx.fill();
@@ -638,22 +682,21 @@ export class Renderer {
     let x = bx + border + l.padX;
     for (const [part, pw] of l.parts) {
       if (part === 'bang') this.drawBang(x + pw / 2, 0, pw);
-      else if (part === 'ret') this.drawCrosshair(x + pw / 2, 0, pw);
       else if (part === 'word') this.drawWord(l, x, fs, charW, fogged);
       else if (part === 'armor') {
-        ctx.fillStyle = C.ink;
-        ctx.beginPath();
-        ctx.roundRect(x, -11 * ls, pw, 22 * ls, 8 * ls);
-        ctx.fill();
-        ctx.save();
-        ctx.translate(x + 6 * ls, -6.5 * ls);
-        ctx.scale((13 * ls) / 24, (13 * ls) / 24);
-        ctx.fillStyle = C.cream;
-        ctx.fill(P(SHIELD));
-        ctx.restore();
-        ctx.font = `900 ${15 * ls}px ${BODY}`;
-        ctx.fillStyle = C.cream;
-        ctx.fillText(`+${l.extra}`, x + 6 * ls + 16 * ls, 1);
+        // One shield per word still to break after this one.
+        const sw = 16 * ls;
+        for (let i = 0; i < l.extra; i++) {
+          ctx.save();
+          ctx.translate(x + i * (sw + 2 * ls), -9 * ls);
+          ctx.scale(sw / 24, (18 * ls) / 26);
+          ctx.fillStyle = '#8C8270';
+          ctx.fill(P(SHIELD));
+          ctx.strokeStyle = C.ink;
+          ctx.lineWidth = 2.5;
+          ctx.stroke(P(SHIELD));
+          ctx.restore();
+        }
       } else if (part === 'queue') {
         ctx.strokeStyle = '#C9B48E';
         ctx.lineWidth = 2;
@@ -676,6 +719,14 @@ export class Renderer {
           qx += 30 * ls;
         }
         ctx.textAlign = 'left';
+      } else if (part === 'combo') {
+        ctx.fillStyle = C.meDeep;
+        ctx.beginPath();
+        ctx.roundRect(x, -14 * ls, pw, 28 * ls, 8 * ls);
+        ctx.fill();
+        ctx.font = `${20 * ls}px ${DISPLAY}`;
+        ctx.fillStyle = '#fff';
+        ctx.fillText(l.combo, x + 7 * ls, 1);
       }
       x += pw + gap;
     }
@@ -687,18 +738,6 @@ export class Renderer {
     const { ctx, ls } = this;
     const { word, typed } = l;
     ctx.font = `800 ${fs}px ${MONO}`;
-    const out = l.kind === 'out';
-    if (out) {
-      ctx.fillStyle = '#DCE8FF';
-      ctx.fillText(word, x, 1);
-      if (typed > 0) {
-        // Opponent's progress on my mob: their colour, struck through.
-        ctx.fillStyle = '#FFB37A';
-        ctx.fillText(word.slice(0, typed), x, 1);
-        ctx.fillRect(x, -1.5, charW * typed, 3);
-      }
-      return;
-    }
     let cx = x;
     if (typed > 0) {
       const tw = charW * typed + 4 * ls;
@@ -744,18 +783,6 @@ export class Renderer {
     ctx.textAlign = 'center';
     ctx.fillText('!', x, y + 1);
     ctx.textAlign = 'left';
-  }
-
-  drawCrosshair(x, y, size) {
-    const { ctx } = this;
-    ctx.save();
-    ctx.translate(x - size / 2, y - size / 2);
-    ctx.scale(size / 24, size / 24);
-    ctx.strokeStyle = C.meDeep;
-    ctx.lineWidth = 3;
-    ctx.lineCap = 'round';
-    ctx.stroke(P(`${ell(12, 12, 8)}M12 1v5M12 18v5M1 12h5M18 12h5`));
-    ctx.restore();
   }
 
   drawMob(m, x, y, size, dir, incoming, frozen, now) {
@@ -824,7 +851,7 @@ export class Renderer {
       if (b.life <= 0 || !target) return false;
       b.last = target;
       const x0 = this.baseX(b.side);
-      const y0 = 375 * k;
+      const y0 = 400 * k;
       const pts = [[x0, y0]];
       const steps = 6;
       for (let i = 1; i < steps; i++) {
