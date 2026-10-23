@@ -16,6 +16,7 @@ function newPlayer() {
     mode: 'gather',
     pickaxe: 0,
     luck: 0,
+    drill: 0,
     frostCd: 0,
     charges: Object.fromEntries(Object.entries(MOBS).filter(([, def]) => !def.hidden).map(([type, def]) => [type, { n: def.charges, t: 0 }])),
     frost: 0,
@@ -238,7 +239,8 @@ export class Game {
       for (const [type, charge] of Object.entries(p.charges)) {
         const def = MOBS[type];
         if (charge.n >= def.charges) continue;
-        charge.t += dt;
+        // Store elapsed base recharge seconds so upgrades preserve percentage progress.
+        charge.t += dt / (1 - p.drill * SPELLS.drill.reduction);
         while (charge.t >= def.recharge && charge.n < def.charges) {
           charge.t -= def.recharge;
           charge.n++;
@@ -293,12 +295,13 @@ export class Game {
         mode: p.mode,
         pickaxe: p.pickaxe,
         luck: p.luck,
+        drill: p.drill,
         frostCd: +p.frostCd.toFixed(2),
         pressured: this.mobs.filter((m) => m.target === slot).length >= PRESSURE_MOBS,
         charges: Object.fromEntries(Object.entries(p.charges).map(([type, charge]) => [type, {
           n: charge.n,
           progress: charge.t / MOBS[type].recharge,
-          recharge: MOBS[type].recharge,
+          recharge: MOBS[type].recharge * (1 - p.drill * SPELLS.drill.reduction),
         }])),
         frost: +p.frost.toFixed(2),
         fog: +p.fog.toFixed(2),

@@ -564,6 +564,7 @@ input:focus, select:focus { box-shadow: 0 0 0 4px rgba(47, 111, 224, 0.35); }
 .shop-item { background-image: linear-gradient(to right, #b8dda6 var(--recharge, 0%), transparent var(--recharge, 0%)); }
 .shop-item .availability, .shop-item .pips { font-size: 11px; }
 .shop-item .availability:empty, .shop-item .pips:empty { display: none; }
+.shop-item[data-id='drill'] { grid-column: 1 / span 2; grid-row: 3; }
 .shop-item[data-id='luck'] { grid-column: 3 / span 2; grid-row: 3; }
 
 .shop-grid { grid-auto-rows: minmax(0, 1fr); }

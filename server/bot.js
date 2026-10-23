@@ -109,9 +109,9 @@ export class Bot {
     if (threats.length >= 4 && me.frostCd <= 0 && me.gold >= SPELLS.frost.cost) {
       return game.buy(this.slot, 'frost');
     }
-    for (const upgrade of ['luck']) {
+    for (const upgrade of ['luck', 'drill']) {
       const cost = SPELLS[upgrade].costs[me[upgrade]];
-      const useful = game.time < 150;
+      const useful = upgrade === 'luck' ? game.time < 150 : Object.values(me.charges).some((c) => c.n === 0);
       if (useful && cost != null && me.gold >= cost && Math.random() < 0.25) return game.buy(this.slot, upgrade);
     }
     const pick = pickaxeCost(me.pickaxe);

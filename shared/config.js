@@ -60,6 +60,7 @@ export const MOBS = {
 
 export const SPELLS = {
   luck: { key: '9', name: 'Luck', costs: [50, 90, 140], golden: [GOLDEN_CHANCE, 0.20, 0.28, 0.36], diamond: [0, 0, 0, 0.04], desc: 'Better ores; diamond at level 3' },
+  drill: { key: '0', name: 'Drill Sergeant', costs: [60, 100, 150], reduction: 0.15, desc: 'Recharge mobs 15% faster' },
   frost: { key: '5', name: 'Frost', cost: 40, duration: 6, cooldown: 15, slow: 0.4, desc: 'Slow incoming mobs 60%' },
   fog: { key: '6', name: 'Fog', cost: 45, duration: 7, desc: "Blur the opponent's words" },
   repair: { key: '7', name: 'Repair', cost: 50, amount: 15, desc: '+15 base HP' },

@@ -9,7 +9,7 @@ export const $ = (sel) => document.querySelector(sel);
 export const SHOP_ITEMS = [
   { id: 'goblin' }, { id: 'knight' }, { id: 'frost', spell: true }, { id: 'fog', spell: true },
   { id: 'slime' }, { id: 'giant' }, { id: 'repair', spell: true }, { id: 'pickaxe', spell: true },
-  { id: 'luck', spell: true },
+  { id: 'drill', spell: true }, { id: 'luck', spell: true },
 ].map((it) => {
   const def = MOBS[it.id] ?? SPELLS[it.id];
   return { ...it, key: def.key, name: def.name, desc: def.desc };
