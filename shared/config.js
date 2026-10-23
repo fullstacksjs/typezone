@@ -23,6 +23,7 @@ export const COMBO_STEP = 0.1; // +10% gold per combo level
 export const COMBO_CAP = 15; // max multiplier = 1 + 15 * 0.1 = 2.5x
 export const GOLDEN_CHANCE = 0.12;
 export const GOLDEN_MULT = 3;
+export const BOUNTY_SHARE = 0.5;
 export const GOLDEN_TTL = 7; // seconds before a golden ore crumbles
 
 // Ultimate: Lightning strips the current word off every incoming mob
@@ -33,23 +34,23 @@ export const ULT_PER_ORE = 2;
 
 export const MOBS = {
   goblin: {
-    key: '1', name: 'Goblin', cost: 20, speed: 78, damage: 5, words: 1, len: [4, 6], bounty: 2,
+    key: '1', name: 'Goblin', cost: 20, speed: 78, damage: 5, words: 1, len: [4, 6],
     desc: 'Fast & cheap',
   },
   knight: {
-    key: '2', name: 'Knight', cost: 45, speed: 50, damage: 10, words: 2, len: [5, 8], bounty: 5,
+    key: '2', name: 'Knight', cost: 45, speed: 50, damage: 10, words: 2, len: [5, 8],
     desc: 'Armored: 2 words',
   },
   slime: {
-    key: '3', name: 'Slime', cost: 35, speed: 56, damage: 6, words: 1, len: [6, 8], bounty: 3,
+    key: '3', name: 'Slime', cost: 35, speed: 56, damage: 6, words: 1, len: [6, 8],
     desc: 'Splits into 2 slimelets', splits: { into: 'slimelet', count: 2 },
   },
   giant: {
-    key: '4', name: 'Giant', cost: 90, speed: 30, damage: 25, words: 3, len: [7, 11], bounty: 10,
+    key: '4', name: 'Giant', cost: 90, speed: 30, damage: 25, words: 3, len: [7, 11],
     desc: 'Slow, 3 long words, huge damage',
   },
   slimelet: {
-    hidden: true, name: 'Slimelet', cost: 0, speed: 88, damage: 3, words: 1, len: [3, 4], bounty: 1,
+    hidden: true, name: 'Slimelet', cost: 0, speed: 88, damage: 3, words: 1, len: [3, 4], bountyCost: 6,
   },
 };
 

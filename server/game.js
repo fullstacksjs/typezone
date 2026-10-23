@@ -1,6 +1,6 @@
 import {
   LANE_LENGTH, LANES, BASE_HP, START_GOLD, PASSIVE_INCOME, OVERTIME_AT, OVERTIME_INCOME,
-  SUDDEN_DEATH_AT, SUDDEN_DEATH_DPS, overtimeSpeed, ORE_COUNT, ORE_LEN, GOLD_PER_CHAR, GOLDEN_CHANCE, GOLDEN_MULT, GOLDEN_TTL,
+  SUDDEN_DEATH_AT, SUDDEN_DEATH_DPS, overtimeSpeed, ORE_COUNT, ORE_LEN, GOLD_PER_CHAR, GOLDEN_CHANCE, BOUNTY_SHARE, GOLDEN_MULT, GOLDEN_TTL,
   ULT_MAX, ULT_PER_KILL, ULT_PER_ARMOR, ULT_PER_ORE, MOBS, SPELLS, pickaxeCost, comboMultiplier,
 } from '../shared/config.js';
 import { pickWord } from '../shared/words.js';
@@ -136,11 +136,13 @@ export class Game {
     }
     const def = MOBS[mob.type];
     this.mobs.splice(this.mobs.indexOf(mob), 1);
-    p.gold += def.bounty;
-    p.stats.goldEarned += def.bounty;
+    const bounty = Math.round((def.bountyCost ?? def.cost) * BOUNTY_SHARE
+      * comboMultiplier(p.combo) * (1 + p.pickaxe * SPELLS.pickaxe.bonus));
+    p.gold += bounty;
+    p.stats.goldEarned += bounty;
     p.stats.mobsKilled++;
     if (cause === 'type') p.ult = Math.min(ULT_MAX, p.ult + ULT_PER_KILL);
-    this.emit({ e: 'kill', slot, mobId: mob.id, type: mob.type, x: this.absX(mob), lane: mob.lane, bounty: def.bounty, cause });
+    this.emit({ e: 'kill', slot, mobId: mob.id, type: mob.type, x: this.absX(mob), lane: mob.lane, bounty, cause });
     if (def.splits) {
       for (let i = 0; i < def.splits.count; i++) {
         const lane = Math.max(0, Math.min(LANES - 1, mob.lane + (i === 0 ? -1 : 1)));

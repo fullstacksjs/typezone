@@ -60,7 +60,7 @@ test('knights need both words; only the target can hit, in fight mode, with the 
   g.hitMob('p2', mob.id, 1);
   assert.equal(g.mobs.length, 0);
   assert.equal(g.players.p2.stats.mobsKilled, 1);
-  assert.equal(g.players.p2.gold, START_GOLD + MOBS.knight.bounty);
+  assert.equal(g.players.p2.gold, START_GOLD + Math.round(MOBS.knight.cost * 0.5 * 1.2));
 });
 
 test('slimes split into slimelets when killed', () => {
@@ -160,3 +160,23 @@ test('bot vs bot plays a full match to completion', () => {
   assert.ok(s.stats.p1.mobsSent > 0 && s.stats.p2.mobsSent > 0);
   assert.ok(s.stats.p1.wpm > 0);
 });
+
+
+test('bounties use defender combo and pickaxe, including Lightning and slimelets', () => {
+  for (const cause of ['type', 'ult']) {
+    const g = new Game();
+    const p = g.players.p2;
+    p.combo = 5;
+    p.pickaxe = 2;
+    g.players.p1.pickaxe = 4;
+    for (const type of ['goblin', 'slimelet']) {
+      const mob = g.spawnMob('p1', type);
+      const before = p.gold;
+      g.breakWord('p2', mob, cause);
+      const expected = Math.round((type === 'slimelet' ? 6 : 20) * 0.5 * 1.5 * 1.5);
+      assert.equal(p.gold - before, expected);
+      assert.equal(g.events.at(-1).bounty, expected);
+    }
+  }
+});
+
