@@ -13,12 +13,12 @@ Spend gold to send mobs at your opponent or to cast spells:
 | 2 | Knight | 45 | Armored: 2 words; 2 charges, 8s recharge |
 | 3 | Slime | 35 | Splits into 2 slimelets; 2 charges, 12s recharge |
 | 4 | Giant | 90 | Slow, 3 long words, 25 damage; 1 charge, 20s recharge |
-| 5 | Frost | 40 | Slow mobs attacking you by 60% for 6s |
+| 5 | Frost | 40 | Slow mobs attacking you by 60% for 6s; 15s cooldown from cast |
 | 6 | Fog | 45 | Blur your opponent's words for 7s |
 | 7 | Repair | 50 | +15 base HP |
 | 8 | Pickaxe | 40→160 | +25% gather gold (4 levels) |
 
-Mob charges start full and refill one at a time while below the cap. Shop buttons show charges, recharge progress, and upgrade levels.
+Mob charges start full and refill one at a time while below the cap. Shop buttons show charges, recharge progress, cooldowns, and upgrade levels.
 
 Kills pay `round(mob cost × 0.5 × defender combo multiplier × defender Pickaxe multiplier)`, including Lightning kills. Slimelets use a bounty cost of 6 gold and move at speed 72. The parent Slime pays its own cost-based bounty. While at least three mobs are heading toward your base, passive income increases by 50%, stacking with overtime. The HUD shows this pressure bonus.
 
