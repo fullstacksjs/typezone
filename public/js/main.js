@@ -1,12 +1,12 @@
-import { BASE_HP, LANE_LENGTH, MOBS, SPELLS, ULT_MAX, comboMultiplier } from '/shared/config.js';
-import { Renderer } from './render.js';
-import { TutorialOverlay } from './tutorial.js';
-import { sfx, unlockAudio, toggleMute, isMuted } from './audio.js';
-import { icon } from './icons.js';
+import { BASE_HP, LANE_LENGTH, MOBS, SPELLS, ULT_MAX, comboMultiplier } from '/shared/config.js?v=20261023-tutorial';
+import { Renderer } from './render.js?v=20261023-tutorial';
+import { TutorialOverlay } from './tutorial.js?v=20261023-tutorial';
+import { sfx, unlockAudio, toggleMute, isMuted } from './audio.js?v=20261023-tutorial';
+import { icon } from './icons.js?v=20261023-tutorial';
 import {
   $, SHOP_ITEMS, itemCost, showScreen, buildShop, flashShop, showAlert, flashMiss, updateHud, resetHud,
   floatGold, showEnd,
-} from './ui.js';
+} from './ui.js?v=20261023-tutorial';
 
 // ------------------------------------------------------------ state
 const S = {

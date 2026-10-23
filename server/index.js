@@ -29,7 +29,10 @@ async function serveStatic(req, res) {
     if (!file.startsWith(dir + path.sep)) break;
     try {
       const body = await readFile(file);
-      res.writeHead(200, { 'Content-Type': MIME[path.extname(file)] ?? 'application/octet-stream' });
+      res.writeHead(200, {
+        'Content-Type': MIME[path.extname(file)] ?? 'application/octet-stream',
+        'Cache-Control': 'no-cache',
+      });
       res.end(body);
       return;
     } catch {

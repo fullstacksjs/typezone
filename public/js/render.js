@@ -1,4 +1,4 @@
-import { LANE_LENGTH, BASE_HP } from '/shared/config.js';
+import { LANE_LENGTH, BASE_HP } from '/shared/config.js?v=20261023-tutorial';
 
 const C = {
   ink: '#2B2118',

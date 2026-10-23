@@ -1,7 +1,7 @@
 import {
   BASE_HP, MOBS, SPELLS, ULT_MAX, GOLD_PER_CHAR, GOLDEN_MULT, GOLDEN_TTL, DIAMOND_MULT, DIAMOND_TTL, comboMultiplier,
-} from '/shared/config.js';
-import { icon, gem, tileArt } from './icons.js';
+} from '/shared/config.js?v=20261023-tutorial';
+import { icon, gem, tileArt } from './icons.js?v=20261023-tutorial';
 
 export const $ = (sel) => document.querySelector(sel);
 
