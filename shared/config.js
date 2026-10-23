@@ -63,7 +63,7 @@ export const SPELLS = {
   drill: { key: '0', name: 'Drill Sergeant', costs: [60, 100, 150], reduction: 0.15, desc: 'Recharge mobs 15% faster' },
   frost: { key: '5', name: 'Frost', cost: 40, duration: 6, cooldown: 15, slow: 0.4, desc: 'Slow incoming mobs 60%' },
   fog: { key: '6', name: 'Fog', cost: 45, duration: 7, desc: "Blur the opponent's words" },
-  repair: { key: '7', name: 'Repair', cost: 50, amount: 15, desc: '+15 base HP' },
+  repair: { key: '7', name: 'Repair', cost: 50, amount: 15, cooldown: 20, desc: '+15 base HP' },
   pickaxe: { key: '8', name: 'Pickaxe', costs: [40, 70, 110, 160], bonus: 0.25, desc: '+25% gather gold' },
 };
 

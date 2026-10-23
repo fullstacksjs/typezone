@@ -103,7 +103,7 @@ export class Bot {
     const game = this.game;
     const me = this.me;
     if (me.ult >= ULT_MAX && threats.length >= 3) return game.ultimate(this.slot);
-    if (me.hp < BASE_HP * 0.5 && me.gold >= SPELLS.repair.cost && Math.random() < 0.5) {
+    if (me.hp < BASE_HP * 0.5 && me.repairCd <= 0 && me.gold >= SPELLS.repair.cost && Math.random() < 0.5) {
       return game.buy(this.slot, 'repair');
     }
     if (threats.length >= 4 && me.frostCd <= 0 && me.gold >= SPELLS.frost.cost) {

@@ -18,6 +18,7 @@ function newPlayer() {
     luck: 0,
     drill: 0,
     frostCd: 0,
+    repairCd: 0,
     charges: Object.fromEntries(Object.entries(MOBS).filter(([, def]) => !def.hidden).map(([type, def]) => [type, { n: def.charges, t: 0 }])),
     frost: 0,
     fog: 0,
@@ -191,12 +192,13 @@ export class Game {
     const cost = spell.costs ? spell.costs[p[item]] : spell.cost;
     if (cost == null || p.gold < cost) return false;
     if (item === 'frost' && p.frostCd > 0) return false;
+    if (item === 'repair' && p.repairCd > 0) return false;
     if (item === 'repair' && (p.hp >= BASE_HP || this.time >= SUDDEN_DEATH_AT)) return false;
     p.gold -= cost;
     p.stats.spells++;
     if (item === 'frost') { p.frost = spell.duration; p.frostCd = spell.cooldown; }
     if (item === 'fog') foe.fog = spell.duration;
-    if (item === 'repair') p.hp = Math.min(BASE_HP, p.hp + spell.amount);
+    if (item === 'repair') { p.hp = Math.min(BASE_HP, p.hp + spell.amount); p.repairCd = spell.cooldown; }
     if (spell.costs) p[item]++;
     this.emit({ e: 'spell', slot, spell: item });
     return true;
@@ -236,6 +238,7 @@ export class Game {
       const income = PASSIVE_INCOME * dt * (this.overtime ? OVERTIME_INCOME : 1) * (pressured ? PRESSURE_INCOME : 1);
       p.gold += income;
       p.frostCd = Math.max(0, p.frostCd - dt);
+      p.repairCd = Math.max(0, p.repairCd - dt);
       for (const [type, charge] of Object.entries(p.charges)) {
         const def = MOBS[type];
         if (charge.n >= def.charges) continue;
@@ -297,6 +300,7 @@ export class Game {
         luck: p.luck,
         drill: p.drill,
         frostCd: +p.frostCd.toFixed(2),
+        repairCd: +p.repairCd.toFixed(2),
         pressured: this.mobs.filter((m) => m.target === slot).length >= PRESSURE_MOBS,
         charges: Object.fromEntries(Object.entries(p.charges).map(([type, charge]) => [type, {
           n: charge.n,

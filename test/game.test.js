@@ -242,6 +242,22 @@ test('Frost cooldown runs from cast, rejects recasts, and expires after 15 secon
   assert.equal(g.buy('p1', 'frost'), true);
 });
 
+test('Repair cooldown rejects recasts until 20 seconds after cast', () => {
+  const g = new Game();
+  const p = g.players.p1;
+  p.gold = 1000;
+  p.hp = 50;
+  assert.equal(g.buy('p1', 'repair'), true);
+  assert.equal(p.repairCd, 20);
+  g.update(10);
+  const before = p.gold;
+  assert.equal(g.buy('p1', 'repair'), false);
+  assert.equal(p.gold, before);
+  assert.equal(g.snapshot().players.p1.repairCd, 10);
+  g.update(10);
+  assert.equal(g.buy('p1', 'repair'), true);
+});
+
 test('Luck and Drill Sergeant use their level costs and cap at three', () => {
   for (const upgrade of ['luck', 'drill']) {
     const g = new Game();
