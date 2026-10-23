@@ -18,6 +18,8 @@ Spend gold to send mobs at your opponent or to cast spells:
 | 7 | Repair | 50 | +15 base HP |
 | 8 | Pickaxe | 40→160 | +25% gather gold (4 levels) |
 
+Kills pay `round(mob cost × 0.5 × defender combo multiplier × defender Pickaxe multiplier)`, including Lightning kills. Slimelets use a bounty cost of 6 gold and move at speed 88. The parent Slime pays its own cost-based bounty.
+
 Other controls: `Tab` switches mode, `Enter` fires Lightning (strips a word off every incoming mob), `Esc`/`Backspace` drops your target. Typos reset your combo.
 
 You can see your opponent's mode, gold and live typing progress on your mobs, so attack while they're busy mining. At 2:30 overtime starts: mobs keep speeding up and income doubles. At 5:00 sudden death crumbles both bases and Repair is disabled.
