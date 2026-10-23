@@ -76,6 +76,9 @@ function onMessage(msg) {
       }
       break;
     case 'countdown':
+      S.snap = null;
+      S.lock = null;
+      resetHud();
       enterGameScreen();
       $('#end').classList.add('hidden');
       $('#countdown').classList.remove('hidden');
