@@ -226,3 +226,12 @@ test('mob charges start full, reject empty purchases, refill sequentially and ca
   }
 });
 
+test('slimelets move at 72 and split behind the parent even near the gate', () => {
+  const g = new Game();
+  const mob = g.spawnMob('p1', 'slime', 990, 1);
+  g.breakWord('p2', mob, 'type');
+  assert.deepEqual(g.mobs.map((m) => m.d), [970, 945]);
+  assert.ok(g.mobs.every((m) => g.speedOf(m) === 72));
+});
+
+
