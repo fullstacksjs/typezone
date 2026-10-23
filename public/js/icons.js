@@ -9,6 +9,7 @@ export const ICON_PATHS = {
   fog: 'M4 10h13M2 14h18M6 18h11M8 6h8',
   repair: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10zM12 8v7M8.5 11.5h7',
   luck: 'M6 3h12l4 6-10 12L2 9zM2 9h20M8 3l4 18 4-18',
+  drill: 'M4 7h16M6 11h12M8 15h8M10 19h4',
   pickaxe: 'M4 9c4-5 12-5 16 0M12 6 6 20',
   sword: 'M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2M14.5 6.5 18 3h3v3l-3.5 3.5M5 14l4 4M7 17l-3 3M3 19l2 2',
   bolt: 'M13 2 3 14h9l-1 8 10-12h-9z',

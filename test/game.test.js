@@ -242,6 +242,43 @@ test('Frost cooldown runs from cast, rejects recasts, and expires after 15 secon
   assert.equal(g.buy('p1', 'frost'), true);
 });
 
+test('Luck and Drill Sergeant use their level costs and cap at three', () => {
+  for (const upgrade of ['luck', 'drill']) {
+    const g = new Game();
+    const p = g.players.p1;
+    p.gold = SPELLS[upgrade].costs[0] - 1;
+    assert.equal(g.buy('p1', upgrade), false);
+    p.gold = 1000;
+    for (const cost of SPELLS[upgrade].costs) {
+      const before = p.gold;
+      assert.equal(g.buy('p1', upgrade), true);
+      assert.equal(before - p.gold, cost);
+    }
+    assert.equal(p[upgrade], 3);
+    assert.equal(g.snapshot().players.p1[upgrade], 3);
+    const before = p.gold;
+    assert.equal(g.buy('p1', upgrade), false);
+    assert.equal(p.gold, before);
+  }
+});
+
+test('Drill Sergeant preserves recharge progress and shortens remaining time', () => {
+  const g = new Game();
+  const p = g.players.p1;
+  p.gold = 1000;
+  g.buy('p1', 'slime');
+  g.update(6);
+  g.buy('p1', 'drill');
+  g.buy('p1', 'drill');
+  g.buy('p1', 'drill');
+  const charge = g.snapshot().players.p1.charges.slime;
+  assert.equal(charge.progress, 0.5);
+  assert.ok(Math.abs(charge.recharge - 6.6) < 1e-8);
+  g.update(3.3 + 1e-8);
+  assert.equal(p.charges.slime.n, 2);
+  assert.equal(p.charges.slime.t, 0);
+});
+
 test('Luck gives absolute diamond and golden chances, long diamond words, and 5x payouts', (t) => {
   const g = new Game();
   const p = g.players.p1;
@@ -301,6 +338,7 @@ test('bot skips exhausted mob types and respects Frost cooldown', (t) => {
   p.gold = 100;
   p.pickaxe = 4;
   p.luck = 3;
+  p.drill = 3;
   p.frostCd = 9;
   p.charges.goblin.n = 0;
   const bot = new Bot(g, 'p1');
@@ -317,3 +355,18 @@ test('bot skips exhausted mob types and respects Frost cooldown', (t) => {
   assert.deepEqual(bought, []);
 });
 
+test('bot buys useful Luck and Drill Sergeant upgrades', (t) => {
+  for (const upgrade of ['luck', 'drill']) {
+    const g = new Game();
+    const p = g.players.p1;
+    p.gold = 1000;
+    if (upgrade === 'drill') {
+      p.luck = 3;
+      p.charges.goblin.n = 0;
+    }
+    t.mock.method(Math, 'random', () => 0.1);
+    new Bot(g, 'p1').shop([]);
+    assert.equal(p[upgrade], 1);
+    t.mock.restoreAll();
+  }
+});

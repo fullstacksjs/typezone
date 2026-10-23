@@ -18,8 +18,9 @@ Spend gold to send mobs at your opponent or to cast spells:
 | 7 | Repair | 50 | +15 base HP |
 | 8 | Pickaxe | 40→160 | +25% gather gold (4 levels) |
 | 9 | Luck | 50 / 90 / 140 | Golden chance 20% / 28% / 36%; level 3 adds 4% diamond chance |
+| 0 | Drill Sergeant | 60 / 100 / 150 | Mob recharge time reduced by 15% / 30% / 45% |
 
-Mob charges start full and refill one at a time while below the cap. Shop buttons show charges, recharge progress, cooldowns, and upgrade levels.
+Mob charges start full and refill one at a time while below the cap. Drill Sergeant preserves existing recharge progress when upgraded. Shop buttons show charges, recharge progress, cooldowns, and upgrade levels.
 
 Kills pay `round(mob cost × 0.5 × defender combo multiplier × defender Pickaxe multiplier)`, including Lightning kills. Slimelets use a bounty cost of 6 gold and move at speed 72. The parent Slime pays its own cost-based bounty. While at least three mobs are heading toward your base, passive income increases by 50%, stacking with overtime. The HUD shows this pressure bonus.
 
