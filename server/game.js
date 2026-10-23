@@ -1,7 +1,7 @@
 import {
   LANE_LENGTH, LANES, BASE_HP, START_GOLD, PASSIVE_INCOME, OVERTIME_AT, OVERTIME_INCOME,
-  SUDDEN_DEATH_AT, SUDDEN_DEATH_DPS, overtimeSpeed, ORE_COUNT, ORE_LEN, GOLD_PER_CHAR, GOLDEN_CHANCE, BOUNTY_SHARE, PRESSURE_MOBS, PRESSURE_INCOME, GOLDEN_MULT, GOLDEN_TTL,
-  ULT_MAX, ULT_PER_KILL, ULT_PER_ARMOR, ULT_PER_ORE, MOBS, SPELLS, pickaxeCost, comboMultiplier,
+  SUDDEN_DEATH_AT, SUDDEN_DEATH_DPS, overtimeSpeed, ORE_COUNT, ORE_LEN, GOLD_PER_CHAR, DIAMOND_MULT, DIAMOND_TTL, BOUNTY_SHARE, PRESSURE_MOBS, PRESSURE_INCOME, GOLDEN_MULT, GOLDEN_TTL,
+  ULT_MAX, ULT_PER_KILL, ULT_PER_ARMOR, ULT_PER_ORE, MOBS, SPELLS, comboMultiplier,
 } from '../shared/config.js';
 import { pickWord } from '../shared/words.js';
 
@@ -15,6 +15,7 @@ function newPlayer() {
     bestCombo: 0,
     mode: 'gather',
     pickaxe: 0,
+    luck: 0,
     frostCd: 0,
     charges: Object.fromEntries(Object.entries(MOBS).filter(([, def]) => !def.hidden).map(([type, def]) => [type, { n: def.charges, t: 0 }])),
     frost: 0,
@@ -57,9 +58,12 @@ export class Game {
     const p = this.players[slot];
     const avoid = new Set(p.ores.map((o) => o.word[0]));
     const exclude = new Set(p.ores.map((o) => o.word));
-    const golden = allowGolden && Math.random() < GOLDEN_CHANCE;
-    const word = golden ? pickWord(6, 9, avoid, exclude) : pickWord(ORE_LEN[0], ORE_LEN[1], avoid, exclude);
-    p.ores.push({ id: this.nextId++, word, golden, ttl: golden ? GOLDEN_TTL : null });
+    const roll = allowGolden ? Math.random() : 1;
+    const diamond = roll < SPELLS.luck.diamond[p.luck];
+    const golden = !diamond && roll < SPELLS.luck.diamond[p.luck] + SPELLS.luck.golden[p.luck];
+    const word = diamond ? pickWord(8, 11, avoid, exclude)
+      : golden ? pickWord(6, 9, avoid, exclude) : pickWord(ORE_LEN[0], ORE_LEN[1], avoid, exclude);
+    p.ores.push({ id: this.nextId++, word, golden, diamond, ttl: diamond ? DIAMOND_TTL : golden ? GOLDEN_TTL : null });
   }
 
   gather(slot, oreId) {
@@ -71,13 +75,13 @@ export class Game {
     p.ores.splice(idx, 1);
     p.combo++;
     p.bestCombo = Math.max(p.bestCombo, p.combo);
-    const mult = comboMultiplier(p.combo) * (1 + p.pickaxe * SPELLS.pickaxe.bonus) * (ore.golden ? GOLDEN_MULT : 1);
+    const mult = comboMultiplier(p.combo) * (1 + p.pickaxe * SPELLS.pickaxe.bonus) * (ore.diamond ? DIAMOND_MULT : ore.golden ? GOLDEN_MULT : 1);
     const gold = Math.round(ore.word.length * GOLD_PER_CHAR * mult);
     p.gold += gold;
     p.ult = Math.min(ULT_MAX, p.ult + ULT_PER_ORE);
     p.stats.goldEarned += gold;
     p.stats.chars += ore.word.length;
-    this.emit({ e: 'gather', slot, gold, golden: ore.golden, oreId });
+    this.emit({ e: 'gather', slot, gold, golden: ore.golden, diamond: ore.diamond, oreId });
     this.addOre(slot);
   }
 
@@ -183,7 +187,7 @@ export class Game {
 
     const spell = SPELLS[item];
     if (!spell) return false;
-    const cost = item === 'pickaxe' ? pickaxeCost(p.pickaxe) : spell.cost;
+    const cost = spell.costs ? spell.costs[p[item]] : spell.cost;
     if (cost == null || p.gold < cost) return false;
     if (item === 'frost' && p.frostCd > 0) return false;
     if (item === 'repair' && (p.hp >= BASE_HP || this.time >= SUDDEN_DEATH_AT)) return false;
@@ -192,7 +196,7 @@ export class Game {
     if (item === 'frost') { p.frost = spell.duration; p.frostCd = spell.cooldown; }
     if (item === 'fog') foe.fog = spell.duration;
     if (item === 'repair') p.hp = Math.min(BASE_HP, p.hp + spell.amount);
-    if (item === 'pickaxe') p.pickaxe++;
+    if (spell.costs) p[item]++;
     this.emit({ e: 'spell', slot, spell: item });
     return true;
   }
@@ -288,6 +292,7 @@ export class Game {
         combo: p.combo,
         mode: p.mode,
         pickaxe: p.pickaxe,
+        luck: p.luck,
         frostCd: +p.frostCd.toFixed(2),
         pressured: this.mobs.filter((m) => m.target === slot).length >= PRESSURE_MOBS,
         charges: Object.fromEntries(Object.entries(p.charges).map(([type, charge]) => [type, {
@@ -298,7 +303,7 @@ export class Game {
         frost: +p.frost.toFixed(2),
         fog: +p.fog.toFixed(2),
         ult: p.ult,
-        ores: p.ores.map((o) => ({ id: o.id, word: o.word, golden: o.golden, ttl: o.ttl == null ? null : +o.ttl.toFixed(2) })),
+        ores: p.ores.map((o) => ({ id: o.id, word: o.word, golden: o.golden, diamond: o.diamond, ttl: o.ttl == null ? null : +o.ttl.toFixed(2) })),
       };
     }
     const mobs = this.mobs.map((m) => ({

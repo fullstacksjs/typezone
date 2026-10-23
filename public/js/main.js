@@ -195,7 +195,8 @@ function showLock(err = false) {
   if (!lock) return setTypingLine(null, 0, err);
   let tag;
   if (lock.kind === 'ore') {
-    tag = me()?.ores.find((o) => o.id === lock.id)?.golden ? 'GOLDEN ORE' : 'ORE';
+    const ore = me()?.ores.find((o) => o.id === lock.id);
+    tag = ore?.diamond ? 'DIAMOND ORE' : ore?.golden ? 'GOLDEN ORE' : 'ORE';
   } else {
     const m = S.snap?.mobs.find((x) => x.id === lock.id);
     tag = m ? `${MOBS[m.type].name} · ${LANE_NAMES[m.lane]}`.toUpperCase() : '';
@@ -213,8 +214,8 @@ function handleEvent(e) {
   switch (e.e) {
     case 'gather':
       if (mine) {
-        floatGold(`+${e.gold}◆`, e.golden);
-        sfx.coin(e.golden);
+        floatGold(`+${e.gold}◆`, e.golden || e.diamond);
+        sfx.coin(e.golden, e.diamond);
       }
       break;
     case 'kill': {
@@ -295,7 +296,7 @@ function findTarget(ch) {
   }
   const ores = me().ores
     .filter((o) => !S.hiddenOres.has(o.id) && o.word[0] === ch)
-    .sort((a, b) => b.golden - a.golden);
+    .sort((a, b) => (b.diamond ? 2 : b.golden ? 1 : 0) - (a.diamond ? 2 : a.golden ? 1 : 0));
   const o = ores[0];
   return o && { kind: 'ore', id: o.id, wi: 0, typed: 0, word: o.word };
 }

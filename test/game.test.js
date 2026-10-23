@@ -242,6 +242,50 @@ test('Frost cooldown runs from cast, rejects recasts, and expires after 15 secon
   assert.equal(g.buy('p1', 'frost'), true);
 });
 
+test('Luck gives absolute diamond and golden chances, long diamond words, and 5x payouts', (t) => {
+  const g = new Game();
+  const p = g.players.p1;
+  for (const [level, roll, diamond, golden] of [
+    [0, 0.119, false, true], [0, 0.12, false, false],
+    [1, 0.199, false, true], [1, 0.20, false, false],
+    [2, 0.279, false, true], [2, 0.28, false, false],
+    [3, 0.039, true, false], [3, 0.04, false, true],
+    [3, 0.399, false, true], [3, 0.401, false, false],
+  ]) {
+    p.luck = level;
+    p.ores = [];
+    t.mock.method(Math, 'random', () => roll);
+    g.addOre('p1');
+    t.mock.restoreAll();
+    const ore = p.ores[0];
+    assert.equal(ore.diamond, diamond);
+    assert.equal(ore.golden, golden);
+    if (diamond) {
+      assert.ok(ore.word.length >= 8 && ore.word.length <= 11);
+      const before = p.gold;
+      g.gather('p1', ore.id);
+      assert.equal(p.gold - before, Math.round(ore.word.length * 1.6 * 1.1 * 5));
+      assert.equal(g.events.at(-1).diamond, true);
+    }
+  }
+});
+
+test('diamond ores expire and snapshots preserve their tier', (t) => {
+  const g = new Game();
+  const p = g.players.p1;
+  p.luck = 3;
+  p.ores = [];
+  t.mock.method(Math, 'random', () => 0.01);
+  g.addOre('p1');
+  t.mock.restoreAll();
+  const ore = p.ores[0];
+  assert.equal(g.snapshot().players.p1.ores[0].diamond, true);
+  g.update(ore.ttl);
+  assert.ok(!p.ores.some((o) => o.id === ore.id));
+  assert.equal(p.ores[0].diamond, false);
+  assert.equal(p.ores[0].golden, false);
+});
+
 test('slimelets move at 72 and split behind the parent even near the gate', () => {
   const g = new Game();
   const mob = g.spawnMob('p1', 'slime', 990, 1);
@@ -256,6 +300,7 @@ test('bot skips exhausted mob types and respects Frost cooldown', (t) => {
   const p = g.players.p1;
   p.gold = 100;
   p.pickaxe = 4;
+  p.luck = 3;
   p.frostCd = 9;
   p.charges.goblin.n = 0;
   const bot = new Bot(g, 'p1');

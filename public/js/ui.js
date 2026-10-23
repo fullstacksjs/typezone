@@ -1,5 +1,5 @@
 import {
-  BASE_HP, MOBS, SPELLS, ULT_MAX, GOLD_PER_CHAR, GOLDEN_MULT, OVERTIME_AT, comboMultiplier,
+  BASE_HP, MOBS, SPELLS, ULT_MAX, GOLD_PER_CHAR, GOLDEN_MULT, DIAMOND_MULT, OVERTIME_AT, comboMultiplier,
 } from '/shared/config.js';
 import { icon, gem } from './icons.js';
 
@@ -9,6 +9,7 @@ export const $ = (sel) => document.querySelector(sel);
 export const SHOP_ITEMS = [
   { id: 'goblin' }, { id: 'knight' }, { id: 'frost', spell: true }, { id: 'fog', spell: true },
   { id: 'slime' }, { id: 'giant' }, { id: 'repair', spell: true }, { id: 'pickaxe', spell: true },
+  { id: 'luck', spell: true },
 ].map((it) => {
   const def = MOBS[it.id] ?? SPELLS[it.id];
   return { ...it, key: def.key, name: def.name, desc: def.desc };
@@ -252,14 +253,15 @@ function renderOres(me, lock, hiddenOres) {
     keep.add(ore.id);
     const typed = lockOre?.id === ore.id ? lockOre.typed : 0;
     el.classList.toggle('golden', ore.golden);
+    el.classList.toggle('diamond', ore.diamond);
     el.classList.toggle('locked', lockOre?.id === ore.id);
     const done = ore.word.slice(0, typed);
-    const gain = Math.round(ore.word.length * GOLD_PER_CHAR * mult * (ore.golden ? GOLDEN_MULT : 1));
+    const gain = Math.round(ore.word.length * GOLD_PER_CHAR * mult * (ore.diamond ? DIAMOND_MULT : ore.golden ? GOLDEN_MULT : 1));
     el.innerHTML = '<div class="ore-face"><span class="w">'
       + (done ? `<span class="t-done">${done}</span>` : '')
       + `<span>${ore.word.charAt(typed)}</span><span class="far">${ore.word.slice(typed + 1)}</span></span>`
       + `<span class="gain">+${gain}${gem(15)}`
-      + (ore.ttl != null ? `<span class="ttl">×${GOLDEN_MULT} · ${Math.ceil(ore.ttl)}s</span>` : '')
+      + (ore.ttl != null ? `<span class="ttl">×${ore.diamond ? DIAMOND_MULT : GOLDEN_MULT} · ${Math.ceil(ore.ttl)}s</span>` : '')
       + '</span></div>';
   }
   for (const [id, el] of existing) if (!keep.has(id)) el.remove();

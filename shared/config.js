@@ -23,6 +23,8 @@ export const COMBO_STEP = 0.1; // +10% gold per combo level
 export const COMBO_CAP = 15; // max multiplier = 1 + 15 * 0.1 = 2.5x
 export const GOLDEN_CHANCE = 0.12;
 export const GOLDEN_MULT = 3;
+export const DIAMOND_MULT = 5;
+export const DIAMOND_TTL = 7;
 export const BOUNTY_SHARE = 0.5;
 export const PRESSURE_MOBS = 3;
 export const PRESSURE_INCOME = 1.5;
@@ -57,6 +59,7 @@ export const MOBS = {
 };
 
 export const SPELLS = {
+  luck: { key: '9', name: 'Luck', costs: [50, 90, 140], golden: [GOLDEN_CHANCE, 0.20, 0.28, 0.36], diamond: [0, 0, 0, 0.04], desc: 'Better ores; diamond at level 3' },
   frost: { key: '5', name: 'Frost', cost: 40, duration: 6, cooldown: 15, slow: 0.4, desc: 'Slow incoming mobs 60%' },
   fog: { key: '6', name: 'Fog', cost: 45, duration: 7, desc: "Blur the opponent's words" },
   repair: { key: '7', name: 'Repair', cost: 50, amount: 15, desc: '+15 base HP' },
