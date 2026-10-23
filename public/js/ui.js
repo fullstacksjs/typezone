@@ -1,7 +1,8 @@
 import {
   BASE_HP, MOBS, SPELLS, ULT_MAX, GOLD_PER_CHAR, GOLDEN_MULT, GOLDEN_TTL, DIAMOND_MULT, DIAMOND_TTL, comboMultiplier,
-} from '/shared/config.js?v=20261023-tutorial';
-import { icon, gem, tileArt } from './icons.js?v=20261023-tutorial';
+} from '/shared/config.js?v=20261023-ores';
+import { icon, gem, tileArt } from './icons.js?v=20261023-ores';
+import { nugget, orePalette } from './nugget.js?v=20261023-ores';
 
 export const $ = (sel) => document.querySelector(sel);
 
@@ -271,7 +272,7 @@ function renderOres(me, lock, hiddenOres) {
     if (!el) {
       el = document.createElement('div');
       el.dataset.id = ore.id;
-      el.className = `ore pop${ore.id % 2 ? ' blue' : ''}`;
+      el.className = 'ore pop';
       box.appendChild(el);
     }
     keep.add(ore.id);
@@ -282,23 +283,24 @@ function renderOres(me, lock, hiddenOres) {
     const done = ore.word.slice(0, typed);
     const gain = Math.round(ore.word.length * GOLD_PER_CHAR * mult * (ore.diamond ? DIAMOND_MULT : ore.golden ? GOLDEN_MULT : 1));
     const left = ore.ttl == null ? 0 : Math.round((ore.ttl / (ore.diamond ? DIAMOND_TTL : GOLDEN_TTL)) * 100);
-    el.innerHTML = '<div class="ore-face"><span class="w">'
+    el.innerHTML = nugget(orePalette(ore))
+      + '<div class="ore-info"><span class="w">'
       + (done ? `<span class="t-done">${done}</span>` : '')
-      + `<span>${ore.word.charAt(typed)}</span><span class="far">${ore.word.slice(typed + 1)}</span></span>`
-      + `<span class="gain">+${gain}`
+      + `<span class="nx">${ore.word.charAt(typed)}</span><span class="far">${ore.word.slice(typed + 1)}</span></span>`
+      + `<span class="gain">${gem(11)}+${gain}`
       + (ore.ttl != null ? `<span class="ttl" style="--left:${left}%" aria-label="crumbles in ${Math.ceil(ore.ttl)} seconds"></span>` : '')
       + '</span></div>';
   }
   for (const [id, el] of existing) if (!keep.has(id)) el.remove();
 }
 
-/** The opponent's ores as bare rocks: you see what they're digging, not the words. */
+/** The opponent's ores, mirrored: same nuggets, blank plates (dots = word length). You see what they're digging, not the words. */
 function renderOppRocks(op) {
   const sig = op.ores.map((o) => `${o.id}${o.golden ? 'g' : ''}${o.diamond ? 'd' : ''}`).join(',');
   if (sig === lastRockSig) return;
   lastRockSig = sig;
-  $('#opp-rocks').innerHTML = op.ores.map((o) => `<div class="ore${o.id % 2 ? ' blue' : ''}`
-    + `${o.golden ? ' golden' : ''}${o.diamond ? ' diamond' : ''}"><div class="ore-face"></div></div>`).join('');
+  $('#opp-rocks').innerHTML = op.ores.map((o) => `<div class="ore">${nugget(orePalette(o))}`
+    + `<div class="ore-info"><span class="w">${'•'.repeat(o.word.length)}</span></div></div>`).join('');
 }
 
 /** Floating "+N◆" over the mine panel. */

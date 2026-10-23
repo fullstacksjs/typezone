@@ -1,12 +1,12 @@
-import { BASE_HP, LANE_LENGTH, MOBS, SPELLS, ULT_MAX, comboMultiplier } from '/shared/config.js?v=20261023-tutorial';
-import { Renderer } from './render.js?v=20261023-tutorial';
-import { TutorialOverlay } from './tutorial.js?v=20261023-tutorial';
-import { sfx, unlockAudio, toggleMute, isMuted } from './audio.js?v=20261023-tutorial';
-import { icon } from './icons.js?v=20261023-tutorial';
+import { BASE_HP, LANE_LENGTH, MOBS, SPELLS, ULT_MAX, comboMultiplier } from '/shared/config.js?v=20261023-ores';
+import { Renderer } from './render.js?v=20261023-ores';
+import { TutorialOverlay } from './tutorial.js?v=20261023-ores';
+import { sfx, unlockAudio, toggleMute, isMuted } from './audio.js?v=20261023-ores';
+import { icon } from './icons.js?v=20261023-ores';
 import {
   $, SHOP_ITEMS, itemCost, showScreen, buildShop, flashShop, showAlert, flashMiss, updateHud, resetHud,
   floatGold, showEnd,
-} from './ui.js?v=20261023-tutorial';
+} from './ui.js?v=20261023-ores';
 
 // ------------------------------------------------------------ state
 const S = {
