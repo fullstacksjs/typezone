@@ -1,6 +1,6 @@
 import {
   LANE_LENGTH, LANES, BASE_HP, START_GOLD, PASSIVE_INCOME, OVERTIME_AT, OVERTIME_INCOME,
-  SUDDEN_DEATH_AT, SUDDEN_DEATH_DPS, overtimeSpeed, ORE_COUNT, ORE_LEN, GOLD_PER_CHAR, GOLDEN_CHANCE, BOUNTY_SHARE, GOLDEN_MULT, GOLDEN_TTL,
+  SUDDEN_DEATH_AT, SUDDEN_DEATH_DPS, overtimeSpeed, ORE_COUNT, ORE_LEN, GOLD_PER_CHAR, GOLDEN_CHANCE, BOUNTY_SHARE, PRESSURE_MOBS, PRESSURE_INCOME, GOLDEN_MULT, GOLDEN_TTL,
   ULT_MAX, ULT_PER_KILL, ULT_PER_ARMOR, ULT_PER_ORE, MOBS, SPELLS, pickaxeCost, comboMultiplier,
 } from '../shared/config.js';
 import { pickWord } from '../shared/words.js';
@@ -223,7 +223,8 @@ export class Game {
 
     for (const slot of ['p1', 'p2']) {
       const p = this.players[slot];
-      const income = PASSIVE_INCOME * dt * (this.overtime ? OVERTIME_INCOME : 1);
+      const pressured = this.mobs.filter((m) => m.target === slot).length >= PRESSURE_MOBS;
+      const income = PASSIVE_INCOME * dt * (this.overtime ? OVERTIME_INCOME : 1) * (pressured ? PRESSURE_INCOME : 1);
       p.gold += income;
       p.frost = Math.max(0, p.frost - dt);
       p.fog = Math.max(0, p.fog - dt);
@@ -272,6 +273,7 @@ export class Game {
         combo: p.combo,
         mode: p.mode,
         pickaxe: p.pickaxe,
+        pressured: this.mobs.filter((m) => m.target === slot).length >= PRESSURE_MOBS,
         frost: +p.frost.toFixed(2),
         fog: +p.fog.toFixed(2),
         ult: p.ult,

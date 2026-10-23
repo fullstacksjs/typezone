@@ -186,7 +186,8 @@ export function updateHud({ snap, you, mode, lock, hiddenOres, danger }) {
   }
   $('#gate-alert').classList.toggle('hidden', !warn);
   $('#mine').classList.toggle('inactive', mode !== 'gather');
-  $('#mine-hint').textContent = mode === 'gather' ? 'type a word to mine it' : 'paused while you fight';
+  $('#mine-hint').textContent = me.pressured ? 'under pressure · +50% passive income'
+    : mode === 'gather' ? 'type a word to mine it' : 'paused while you fight';
 
   // Combo
   const comboEl = $('#combo');

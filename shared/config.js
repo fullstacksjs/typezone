@@ -24,6 +24,8 @@ export const COMBO_CAP = 15; // max multiplier = 1 + 15 * 0.1 = 2.5x
 export const GOLDEN_CHANCE = 0.12;
 export const GOLDEN_MULT = 3;
 export const BOUNTY_SHARE = 0.5;
+export const PRESSURE_MOBS = 3;
+export const PRESSURE_INCOME = 1.5;
 export const GOLDEN_TTL = 7; // seconds before a golden ore crumbles
 
 // Ultimate: Lightning strips the current word off every incoming mob

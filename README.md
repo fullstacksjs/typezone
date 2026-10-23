@@ -18,7 +18,7 @@ Spend gold to send mobs at your opponent or to cast spells:
 | 7 | Repair | 50 | +15 base HP |
 | 8 | Pickaxe | 40→160 | +25% gather gold (4 levels) |
 
-Kills pay `round(mob cost × 0.5 × defender combo multiplier × defender Pickaxe multiplier)`, including Lightning kills. Slimelets use a bounty cost of 6 gold and move at speed 88. The parent Slime pays its own cost-based bounty.
+Kills pay `round(mob cost × 0.5 × defender combo multiplier × defender Pickaxe multiplier)`, including Lightning kills. Slimelets use a bounty cost of 6 gold and move at speed 88. The parent Slime pays its own cost-based bounty. While at least three mobs are heading toward your base, passive income increases by 50%, stacking with overtime. The HUD shows this pressure bonus.
 
 Other controls: `Tab` switches mode, `Enter` fires Lightning (strips a word off every incoming mob), `Esc`/`Backspace` drops your target. Typos reset your combo.
 
