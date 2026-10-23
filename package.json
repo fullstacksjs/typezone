@@ -1,0 +1,14 @@
+{
+  "name": "typezone",
+  "version": "1.0.0",
+  "description": "1v1 real-time typing battle: gather gold, send mobs, defend your base.",
+  "type": "module",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js",
+    "test": "node --test test/*.test.js"
+  },
+  "dependencies": {
+    "ws": "8.22.0"
+  }
+}
