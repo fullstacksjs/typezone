@@ -180,3 +180,24 @@ test('bounties use defender combo and pickaxe, including Lightning and slimelets
   }
 });
 
+test('pressure income starts at three incoming mobs and stacks with overtime', () => {
+  for (const overtime of [false, true]) {
+    const g = new Game();
+    if (overtime) g.time = 150;
+    g.spawnMob('p2', 'goblin'); // outgoing mobs do not count
+    g.spawnMob('p1', 'goblin');
+    g.spawnMob('p1', 'goblin');
+    const p = g.players.p2;
+    let before = p.gold;
+    g.update(1);
+    assert.ok(Math.abs(p.gold - before - 0.6 * (overtime ? 2 : 1)) < 1e-8);
+    g.spawnMob('p1', 'goblin');
+    before = p.gold;
+    g.update(1);
+    assert.ok(Math.abs(p.gold - before - 0.9 * (overtime ? 2 : 1)) < 1e-8);
+    assert.equal(g.snapshot().players.p2.pressured, true);
+    g.mobs = [];
+    assert.equal(g.snapshot().players.p2.pressured, false);
+  }
+});
+
