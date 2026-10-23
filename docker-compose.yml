@@ -1,0 +1,7 @@
+services:
+  typezone:
+    build: .
+    image: typezone:latest
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3100:3000"
