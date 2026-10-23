@@ -1,5 +1,5 @@
 import {
-  BASE_HP, MOBS, SPELLS, ULT_MAX, GOLD_PER_CHAR, GOLDEN_MULT, OVERTIME_AT, pickaxeCost, comboMultiplier,
+  BASE_HP, MOBS, SPELLS, ULT_MAX, GOLD_PER_CHAR, GOLDEN_MULT, OVERTIME_AT, comboMultiplier,
 } from '/shared/config.js';
 import { icon, gem } from './icons.js';
 
@@ -16,7 +16,7 @@ export const SHOP_ITEMS = [
 
 export function itemCost(id, player) {
   if (MOBS[id]) return MOBS[id].cost;
-  if (id === 'pickaxe') return pickaxeCost(player?.pickaxe ?? 0);
+  if (SPELLS[id].costs) return SPELLS[id].costs[player?.[id] ?? 0] ?? null;
   return SPELLS[id].cost;
 }
 
@@ -34,7 +34,7 @@ export function buildShop(onBuy) {
     el.tabIndex = -1;
     el.title = `${it.name}: ${it.desc}`;
     el.innerHTML = `<kbd class="key">${it.key}</kbd>${icon(it.id, { size: 34, width: 2.2, cls: 'icon' })}`
-      + `<span class="txt"><span class="nm">${it.name}</span><span class="cost"></span></span>`;
+      + `<span class="txt"><span class="nm">${it.name}</span><span class="cost"></span><span class="availability"></span><span class="pips"></span></span>`;
     el.addEventListener('mousedown', (e) => {
       e.preventDefault();
       onBuy(it.id);
@@ -209,8 +209,17 @@ export function updateHud({ snap, you, mode, lock, hiddenOres, danger }) {
   for (const el of document.querySelectorAll('.shop-item')) {
     const id = el.dataset.id;
     const cost = itemCost(id, me);
-    const disabled = id === 'repair' && (snap.suddenDeath || me.hp >= BASE_HP);
-    const pick = id === 'pickaxe' ? `Lv${me.pickaxe + 1} · ` : '';
+    const charge = me.charges[id];
+    const cooldown = 0;
+    const disabled = (id === 'repair' && (snap.suddenDeath || me.hp >= BASE_HP)) || charge?.n === 0 || cooldown > 0;
+    const pick = SPELLS[id]?.costs && cost != null ? `Lv${me[id] + 1} · ` : '';
+    el.disabled = cost == null || me.gold < cost || disabled;
+    el.querySelector('.availability').textContent = charge
+      ? `${charge.n}/${MOBS[id].charges}${charge.n < MOBS[id].charges ? ` · ${Math.ceil((1 - charge.progress) * charge.recharge)}s` : ''}`
+      : cooldown > 0 ? `${Math.ceil(cooldown)}s cooldown` : '';
+    el.style.setProperty('--recharge', `${charge && charge.n < MOBS[id].charges ? charge.progress * 100 : 0}%`);
+    el.querySelector('.pips').textContent = SPELLS[id]?.costs
+      ? SPELLS[id].costs.map((_, i) => i < me[id] ? '●' : '○').join(' ') : '';
     el.querySelector('.cost').textContent = cost == null ? 'MAX' : `${pick}${cost} ◆`;
     el.classList.toggle('maxed', cost == null);
     el.classList.toggle('poor', cost == null || me.gold < cost || disabled);

@@ -365,10 +365,12 @@ function buy(id) {
   const p = me();
   if (!S.playing || !p) return;
   const cost = itemCost(id, p);
-  const ok = cost != null && p.gold >= cost && !(id === 'repair' && (p.hp >= BASE_HP || S.snap.suddenDeath));
+  const ok = cost != null && p.gold >= cost && p.charges[id]?.n !== 0
+    && !(id === 'repair' && (p.hp >= BASE_HP || S.snap.suddenDeath));
   flashShop(id, ok);
   if (!ok) return sfx.denied();
   p.gold -= cost; // optimistic; the next snapshot corrects it
+  if (p.charges[id]) p.charges[id].n--;
   send({ t: 'buy', item: id });
 }
 
