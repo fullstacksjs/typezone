@@ -1,8 +1,9 @@
 import {
   BASE_HP, MOBS, SPELLS, ULT_MAX, GOLD_PER_CHAR, GOLDEN_MULT, GOLDEN_TTL, DIAMOND_MULT, DIAMOND_TTL, comboMultiplier,
-} from '/shared/config.js?v=20261023-ores';
-import { icon, gem, tileArt } from './icons.js?v=20261023-ores';
-import { nugget, orePalette } from './nugget.js?v=20261023-ores';
+} from '/shared/config.js?v=20261024-wizard';
+import { icon, gem, tileArt } from './icons.js?v=20261024-wizard';
+import { nugget, orePalette } from './nugget.js?v=20261024-wizard';
+import { minerSvg } from './pixel.js?v=20261024-wizard';
 
 export const $ = (sel) => document.querySelector(sel);
 
@@ -60,6 +61,11 @@ export function buildShop(onBuy) {
     }
     shop.appendChild(tray);
   }
+}
+
+/** Puts a pixel miner in each mine. */
+export function buildMiners() {
+  for (const side of ['me', 'opp']) $(`.mine.${side} .miner-spot`).insertAdjacentHTML('beforeend', minerSvg(side));
 }
 
 export function flashShop(id, ok) {

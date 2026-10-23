@@ -445,15 +445,10 @@ input:focus, select:focus { box-shadow: 0 0 0 4px rgba(47, 111, 224, 0.35); }
 .mine.opp .lamp:nth-child(4) { left: auto; right: 81.4%; }
 
 .miner-spot { position: relative; flex-shrink: 0; align-self: flex-end; width: var(--cave); height: var(--cave); margin-bottom: 4%; display: flex; align-items: center; justify-content: center; }
-.miner { width: 67%; height: 80%; }
+.miner { width: 72%; height: 72%; overflow: visible; }
 .mine.opp .miner { transform: scaleX(-1); }
-.miner-ring { position: absolute; inset: 0; border-radius: 50%; border: 4px solid var(--me); display: none; }
-.mine.opp .miner-ring { border-color: var(--opp); animation: beacon 1.2s ease-in-out infinite; }
-#game.gather .mine.me .miner-ring { display: block; animation: beaconB 1.2s ease-in-out infinite; }
-.mine.opp.active .miner-ring { display: block; }
-.swing { transform-origin: 12px 34px; animation: swing 0.5s ease-in-out infinite alternate; }
+.swing { transform-origin: 15px 13px; animation: swing 0.5s ease-in-out infinite alternate; }
 @keyframes swing { from { transform: rotate(-25deg); } to { transform: rotate(20deg); } }
-@keyframes beaconB { 0%, 100% { box-shadow: 0 0 0 0 rgba(47, 111, 224, 0.7); } 50% { box-shadow: 0 0 0 12px rgba(47, 111, 224, 0); } }
 
 /* Your mine goes dark while you fight; theirs while they defend. */
 #game.fight .mine.me { filter: brightness(0.6) saturate(0.6); }
@@ -622,6 +617,6 @@ input:focus, select:focus { box-shadow: 0 0 0 4px rgba(47, 111, 224, 0.35); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .vig, .gate-alert, .ult-bar.ready, .miner-ring, .swing, .count { animation: none !important; }
+  .vig, .gate-alert, .ult-bar.ready, .swing, .count { animation: none !important; }
   .mine, #field { transition: none; }
 }

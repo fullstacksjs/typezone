@@ -1,12 +1,12 @@
-import { BASE_HP, LANE_LENGTH, MOBS, SPELLS, ULT_MAX, comboMultiplier } from '/shared/config.js?v=20261023-ores';
-import { Renderer } from './render.js?v=20261023-ores';
-import { TutorialOverlay } from './tutorial.js?v=20261023-ores';
-import { sfx, unlockAudio, toggleMute, isMuted } from './audio.js?v=20261023-ores';
-import { icon } from './icons.js?v=20261023-ores';
+import { BASE_HP, LANE_LENGTH, MOBS, SPELLS, ULT_MAX, comboMultiplier } from '/shared/config.js?v=20261024-wizard';
+import { Renderer } from './render.js?v=20261024-wizard';
+import { TutorialOverlay } from './tutorial.js?v=20261024-wizard';
+import { sfx, unlockAudio, toggleMute, isMuted } from './audio.js?v=20261024-wizard';
+import { icon } from './icons.js?v=20261024-wizard';
 import {
-  $, SHOP_ITEMS, itemCost, showScreen, buildShop, flashShop, showAlert, flashMiss, updateHud, resetHud,
+  $, SHOP_ITEMS, itemCost, showScreen, buildShop, buildMiners, flashShop, showAlert, flashMiss, updateHud, resetHud,
   floatGold, showEnd,
-} from './ui.js?v=20261023-ores';
+} from './ui.js?v=20261024-wizard';
 
 // ------------------------------------------------------------ state
 const S = {
@@ -407,6 +407,7 @@ document.addEventListener('keydown', (e) => {
 });
 
 buildShop(buy);
+buildMiners();
 
 // ------------------------------------------------------------ frame loop
 let lastFrame = performance.now();

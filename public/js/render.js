@@ -1,4 +1,5 @@
-import { LANE_LENGTH, BASE_HP } from '/shared/config.js?v=20261023-ores';
+import { LANE_LENGTH, BASE_HP } from '/shared/config.js?v=20261024-wizard';
+import { WIZARD_ART, WIZARD_ORB } from './pixel.js?v=20261024-wizard';
 
 const C = {
   ink: '#2B2118',
@@ -63,25 +64,28 @@ function paint(ctx, shapes, tint = null) {
 const ink = (d, fill, lw = 5) => ({ d, fill, stroke: C.ink, lw });
 const line = (d, stroke, lw) => ({ d, stroke, lw });
 
-// Castles: a 250×460 tree-stump hold, mirrored for the opponent. Team colour on roof and door; emblem shape differs.
+// Castles: a 250×460 tree-stump hold, mirrored for the opponent. Team colour on the door; emblem shape differs.
 const stump = (team, emblem) => [
   line('M40 384c-8 24-24 40-38 56M78 388c2 22-2 40-8 58M186 388c10 22 26 36 46 50M214 384c16 8 28 16 36 20', '#7A4E32', 13),
   ink('M26 394c6-90 10-250 14-320 24-14 152-14 176 0 4 70 8 230 14 320z', '#9B6B43', 4),
   line('M62 110c-4 80 0 190-2 280M118 100c4 90 0 200 2 292M172 106c-6 84 2 194 0 286', '#7A4E32', 4),
   ink(ell(128, 74, 90, 16), '#D9B58A', 4),
   line(ell(128, 74, 56, 9), '#B88A5A', 3),
-  ink('M70 72 128 4 186 72z', team, 4),
-  ink(emblem, C.cream, 2),
   ink('M184 316v-26a24 24 0 0 1 48 0v26z', team, 4),
+  ink(emblem, C.cream, 2),
   ink(ell(222, 302, 3.5), C.gold, 1.5),
   ink(ell(58, 190, 8), C.gold, 2.5),
   ink(ell(92, 290, 8), C.gold, 2.5),
   line('M84 150l16 26-10 22', C.ink, 3),
 ];
 const BASE_ART = {
-  me: stump(C.me, ell(128, 49, 9)),
-  opp: stump(C.opp, 'M128 38l10 18h-20z'),
+  me: stump(C.me, ell(208, 296, 6)),
+  opp: stump(C.opp, 'M208 289l7 13h-14z'),
 };
+// The wizard stands on the stump and casts the attacks: 24×30 pixels at 3.5× in castle units.
+const WIZ = { x: 93, y: -29, px: 3.5 };
+const ORB = { x: WIZ.x + WIZARD_ORB.x * WIZ.px, y: WIZ.y + WIZARD_ORB.y * WIZ.px };
+const ORB_GLOW = { me: '#8FD3FF', opp: '#FFD08A' };
 const BASE_CRACKS = [
   [line('M84 150l16 26-10 22 12 20M160 230l-16 22 10 18M48 300l18 14-6 26', C.ink, 3.5)], // ≤70%
   [line('M58 250l20 16-6 30M140 112l-10 26 14 22M196 300l-14 18', C.ink, 3.5)], // ≤30%
@@ -211,9 +215,10 @@ export class Renderer {
     return (incoming ? ROAD.defend : ROAD.attack) * this.k;
   }
 
-  /** Where shots leave a castle: its side door. */
-  baseX(side) {
-    return side === 'me' ? 232 * this.k : this.w - 232 * this.k;
+  /** Where shots leave a castle: the wizard's staff orb. */
+  castFrom(side) {
+    const x = ORB.x * this.k;
+    return { x: side === 'me' ? x : this.w - x, y: (SKY_H + ORB.y) * this.k };
   }
 
   side(slot) {
@@ -463,6 +468,11 @@ export class Renderer {
     ctx.lineJoin = 'round';
     ctx.lineCap = 'round';
     paint(ctx, art);
+    ctx.save();
+    ctx.translate(WIZ.x, WIZ.y);
+    ctx.scale(WIZ.px, WIZ.px);
+    paint(ctx, WIZARD_ART[side]);
+    ctx.restore();
     if (dmg >= 0.3) paint(ctx, BASE_CRACKS[0]);
     if (dmg >= 0.7) paint(ctx, BASE_CRACKS[1].concat(BASE_FLAMES));
     if (dmg >= 0.3) {
@@ -860,8 +870,7 @@ export class Renderer {
       const target = this.mobPos.get(b.mobId) ?? b.last;
       if (b.life <= 0 || !target) return false;
       b.last = target;
-      const x0 = this.baseX(b.side);
-      const y0 = 400 * k;
+      const { x: x0, y: y0 } = this.castFrom(b.side);
       const pts = [[x0, y0]];
       const steps = 6;
       for (let i = 1; i < steps; i++) {
@@ -870,6 +879,11 @@ export class Renderer {
       }
       pts.push([target.x, target.y]);
       ctx.globalAlpha = Math.min(1, (b.life / b.max) * 2);
+      ctx.strokeStyle = ORB_GLOW[b.side];
+      ctx.lineWidth = 4 * k;
+      ctx.beginPath();
+      ctx.arc(x0, y0, 15 * k, 0, Math.PI * 2);
+      ctx.stroke();
       ctx.lineJoin = 'round';
       ctx.lineCap = 'round';
       const stroke = (color, width, dash) => {
