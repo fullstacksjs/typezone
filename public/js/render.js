@@ -311,6 +311,11 @@ export class Renderer {
       this.drawBase('me', me);
       this.drawBase('opp', opp);
       this.drawMobs(view);
+    } else {
+      // The countdown runs before the first match snapshot arrives.
+      const readyBase = { hp: BASE_HP, frost: 0 };
+      this.drawBase('me', readyBase);
+      this.drawBase('opp', readyBase);
     }
     this.drawBolts(dt);
     this.drawParticles(dt);
