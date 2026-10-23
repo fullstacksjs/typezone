@@ -211,7 +211,7 @@ export function updateHud({ snap, you, mode, lock, hiddenOres, danger }) {
     const id = el.dataset.id;
     const cost = itemCost(id, me);
     const charge = me.charges[id];
-    const cooldown = id === 'frost' ? me.frostCd : 0;
+    const cooldown = id === 'frost' ? me.frostCd : id === 'repair' ? me.repairCd : 0;
     const disabled = (id === 'repair' && (snap.suddenDeath || me.hp >= BASE_HP)) || charge?.n === 0 || cooldown > 0;
     const pick = SPELLS[id]?.costs && cost != null ? `Lv${me[id] + 1} · ` : '';
     el.disabled = cost == null || me.gold < cost || disabled;

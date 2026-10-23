@@ -15,7 +15,7 @@ Spend gold to send mobs at your opponent or to cast spells:
 | 4 | Giant | 90 | Slow, 3 long words, 25 damage; 1 charge, 20s recharge |
 | 5 | Frost | 40 | Slow mobs attacking you by 60% for 6s; 15s cooldown from cast |
 | 6 | Fog | 45 | Blur your opponent's words for 7s |
-| 7 | Repair | 50 | +15 base HP |
+| 7 | Repair | 50 | +15 base HP; 20s cooldown from cast |
 | 8 | Pickaxe | 40→160 | +25% gather gold (4 levels) |
 | 9 | Luck | 50 / 90 / 140 | Golden chance 20% / 28% / 36%; level 3 adds 4% diamond chance |
 | 0 | Drill Sergeant | 60 / 100 / 150 | Mob recharge time reduced by 15% / 30% / 45% |
