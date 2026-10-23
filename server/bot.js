@@ -106,7 +106,7 @@ export class Bot {
     if (me.hp < BASE_HP * 0.5 && me.gold >= SPELLS.repair.cost && Math.random() < 0.5) {
       return game.buy(this.slot, 'repair');
     }
-    if (threats.length >= 4 && me.frost <= 0 && me.gold >= SPELLS.frost.cost) {
+    if (threats.length >= 4 && me.frostCd <= 0 && me.gold >= SPELLS.frost.cost) {
       return game.buy(this.slot, 'frost');
     }
     const pick = pickaxeCost(me.pickaxe);

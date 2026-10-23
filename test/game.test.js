@@ -226,6 +226,22 @@ test('mob charges start full, reject empty purchases, refill sequentially and ca
   }
 });
 
+test('Frost cooldown runs from cast, rejects recasts, and expires after 15 seconds', () => {
+  const g = new Game();
+  const p = g.players.p1;
+  p.gold = 1000;
+  assert.equal(g.buy('p1', 'frost'), true);
+  g.update(6);
+  assert.equal(p.frost, 0);
+  assert.equal(p.frostCd, 9);
+  const before = p.gold;
+  assert.equal(g.buy('p1', 'frost'), false);
+  assert.equal(p.gold, before);
+  assert.equal(g.snapshot().players.p1.frostCd, 9);
+  g.update(9);
+  assert.equal(g.buy('p1', 'frost'), true);
+});
+
 test('slimelets move at 72 and split behind the parent even near the gate', () => {
   const g = new Game();
   const mob = g.spawnMob('p1', 'slime', 990, 1);
@@ -234,4 +250,25 @@ test('slimelets move at 72 and split behind the parent even near the gate', () =
   assert.ok(g.mobs.every((m) => g.speedOf(m) === 72));
 });
 
+
+test('bot skips exhausted mob types and respects Frost cooldown', (t) => {
+  const g = new Game();
+  const p = g.players.p1;
+  p.gold = 100;
+  p.pickaxe = 4;
+  p.frostCd = 9;
+  p.charges.goblin.n = 0;
+  const bot = new Bot(g, 'p1');
+  const bought = [];
+  t.mock.method(g, 'buy', (slot, item) => { bought.push(item); return true; });
+  t.mock.method(Math, 'random', () => 0.99);
+  bot.shop([{}, {}, {}, {}]);
+  assert.equal(bought.length, 1);
+  assert.ok(MOBS[bought[0]]);
+  assert.notEqual(bought[0], 'goblin');
+  for (const charge of Object.values(p.charges)) charge.n = 0;
+  bought.length = 0;
+  bot.shop([{}, {}, {}, {}]);
+  assert.deepEqual(bought, []);
+});
 
