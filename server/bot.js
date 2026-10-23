@@ -116,6 +116,11 @@ export class Bot {
     if (me.gold >= SPELLS.fog.cost + 30 && Math.random() < 0.08) {
       return game.buy(this.slot, 'fog');
     }
+    if (me.charges[this.saveFor].n === 0) {
+      const available = SEND_WEIGHTS.filter(([type]) => me.charges[type].n > 0);
+      if (!available.length) return;
+      this.saveFor = weightedPick(available);
+    }
     if (me.gold >= MOBS[this.saveFor].cost) {
       game.buy(this.slot, this.saveFor);
       this.saveFor = weightedPick(SEND_WEIGHTS);

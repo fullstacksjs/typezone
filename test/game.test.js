@@ -201,3 +201,28 @@ test('pressure income starts at three incoming mobs and stacks with overtime', (
   }
 });
 
+test('mob charges start full, reject empty purchases, refill sequentially and cap', () => {
+  for (const type of ['goblin', 'knight', 'slime', 'giant']) {
+    const g = new Game();
+    const p = g.players.p1;
+    p.gold = 10000;
+    const def = MOBS[type];
+    for (let i = 0; i < def.charges; i++) assert.equal(g.buy('p1', type), true);
+    const before = p.gold;
+    assert.equal(g.buy('p1', type), false);
+    assert.equal(p.gold, before);
+    g.mobs = [];
+    g.update(def.recharge / 2);
+    assert.equal(p.charges[type].n, 0);
+    assert.equal(g.snapshot().players.p1.charges[type].progress, 0.5);
+    g.update(def.recharge / 2);
+    assert.equal(p.charges[type].n, 1);
+    g.update(def.recharge * 10);
+    assert.deepEqual(p.charges[type], { n: def.charges, t: 0 });
+    g.update(1);
+    g.buy('p1', type);
+    assert.equal(p.charges[type].t, 0, 'no recharge banked at full charges');
+    assert.equal(g.players.p2.charges[type].n, def.charges);
+  }
+});
+

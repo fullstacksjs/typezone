@@ -36,19 +36,19 @@ export const ULT_PER_ORE = 2;
 
 export const MOBS = {
   goblin: {
-    key: '1', name: 'Goblin', cost: 20, speed: 78, damage: 5, words: 1, len: [4, 6],
+    key: '1', name: 'Goblin', cost: 20, speed: 78, damage: 5, words: 1, len: [4, 6], charges: 3, recharge: 4,
     desc: 'Fast & cheap',
   },
   knight: {
-    key: '2', name: 'Knight', cost: 45, speed: 50, damage: 10, words: 2, len: [5, 8],
+    key: '2', name: 'Knight', cost: 45, speed: 50, damage: 10, words: 2, len: [5, 8], charges: 2, recharge: 8,
     desc: 'Armored: 2 words',
   },
   slime: {
-    key: '3', name: 'Slime', cost: 35, speed: 56, damage: 6, words: 1, len: [6, 8],
+    key: '3', name: 'Slime', cost: 35, speed: 56, damage: 6, words: 1, len: [6, 8], charges: 2, recharge: 12,
     desc: 'Splits into 2 slimelets', splits: { into: 'slimelet', count: 2 },
   },
   giant: {
-    key: '4', name: 'Giant', cost: 90, speed: 30, damage: 25, words: 3, len: [7, 11],
+    key: '4', name: 'Giant', cost: 90, speed: 30, damage: 25, words: 3, len: [7, 11], charges: 1, recharge: 20,
     desc: 'Slow, 3 long words, huge damage',
   },
   slimelet: {

@@ -559,3 +559,12 @@ input:focus, select:focus { box-shadow: 0 0 0 4px rgba(47, 111, 224, 0.35); }
 @media (prefers-reduced-motion: reduce) {
   .vig, .opp-mode.gather, .mode-btn.warn, .ult.ready .ult-ring, .count { animation: none; }
 }
+
+.shop-item { background-image: linear-gradient(to right, #b8dda6 var(--recharge, 0%), transparent var(--recharge, 0%)); }
+.shop-item .availability, .shop-item .pips { font-size: 11px; }
+.shop-item .availability:empty, .shop-item .pips:empty { display: none; }
+
+.shop-grid { grid-auto-rows: minmax(0, 1fr); }
+.shop-item .availability { white-space: nowrap; }
+
+.shop-item .txt { line-height: 1.1; }

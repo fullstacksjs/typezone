@@ -15,6 +15,7 @@ function newPlayer() {
     bestCombo: 0,
     mode: 'gather',
     pickaxe: 0,
+    charges: Object.fromEntries(Object.entries(MOBS).filter(([, def]) => !def.hidden).map(([type, def]) => [type, { n: def.charges, t: 0 }])),
     frost: 0,
     fog: 0,
     ult: 0,
@@ -170,7 +171,8 @@ export class Game {
 
     if (MOBS[item] && !MOBS[item].hidden) {
       const def = MOBS[item];
-      if (p.gold < def.cost) return false;
+      if (p.gold < def.cost || p.charges[item].n <= 0) return false;
+      p.charges[item].n--;
       p.gold -= def.cost;
       p.stats.mobsSent++;
       const mob = this.spawnMob(slot, item);
@@ -226,6 +228,16 @@ export class Game {
       const pressured = this.mobs.filter((m) => m.target === slot).length >= PRESSURE_MOBS;
       const income = PASSIVE_INCOME * dt * (this.overtime ? OVERTIME_INCOME : 1) * (pressured ? PRESSURE_INCOME : 1);
       p.gold += income;
+      for (const [type, charge] of Object.entries(p.charges)) {
+        const def = MOBS[type];
+        if (charge.n >= def.charges) continue;
+        charge.t += dt;
+        while (charge.t >= def.recharge && charge.n < def.charges) {
+          charge.t -= def.recharge;
+          charge.n++;
+        }
+        if (charge.n === def.charges) charge.t = 0;
+      }
       p.frost = Math.max(0, p.frost - dt);
       p.fog = Math.max(0, p.fog - dt);
       if (suddenDeath) p.hp = Math.max(0, p.hp - SUDDEN_DEATH_DPS * dt);
@@ -274,6 +286,11 @@ export class Game {
         mode: p.mode,
         pickaxe: p.pickaxe,
         pressured: this.mobs.filter((m) => m.target === slot).length >= PRESSURE_MOBS,
+        charges: Object.fromEntries(Object.entries(p.charges).map(([type, charge]) => [type, {
+          n: charge.n,
+          progress: charge.t / MOBS[type].recharge,
+          recharge: MOBS[type].recharge,
+        }])),
         frost: +p.frost.toFixed(2),
         fog: +p.fog.toFixed(2),
         ult: p.ult,
