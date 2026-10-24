@@ -1,18 +1,20 @@
 import { itemCost, purchase } from '../../shared/shop.js';
+import { itemUse } from '../../shared/items.js';
 export { itemCost };
 import {
-  BASE_HP, MOBS, SPELLS, ULT_MAX, GOLD_PER_CHAR, GOLDEN_MULT, GOLDEN_TTL, DIAMOND_MULT, DIAMOND_TTL, comboMultiplier,
-} from '/shared/config.js?v=20261024-wizard';
+  BASE_HP, MOBS, SPELLS, ITEMS, ITEM_SLOTS, ITEM_KEY, ULT_MAX, GOLD_PER_CHAR, GOLDEN_MULT, GOLDEN_TTL, DIAMOND_MULT, DIAMOND_TTL, comboMultiplier,
+} from '/shared/config.js?v=20261024-airdrop';
 import { icon, gem, tileArt } from './icons.js?v=20261024-wizard';
 import { nugget, orePalette } from './nugget.js?v=20261024-wizard';
 import { minerSvg } from './pixel.js?v=20261024-wizard';
 
 export const $ = (sel) => document.querySelector(sel);
 
-// The console's three trays, in key order 1–0.
+// The console's trays, in key order 1–0. Supplies hold airdrop items rather than purchases.
 export const SHOP_GROUPS = [
   { name: 'Barracks: send units', cls: 'barracks', glyph: 'flag', items: ['goblin', 'knight', 'slime', 'giant'] },
-  { name: 'Arcane: spells', cls: 'arcane', glyph: 'sparkle', items: ['frost', 'fog', 'repair'] },
+  { name: 'Arcane: spells', cls: 'arcane', glyph: 'sparkle', items: ['frost', 'fog'] },
+  { name: 'Supplies: airdrop items', cls: 'supplies', glyph: 'crate', slots: ITEM_SLOTS, items: [] },
   { name: 'Upgrades: permanent', cls: 'upgrades', glyph: 'up', items: ['pickaxe', 'luck', 'drill'] },
 ];
 
@@ -25,7 +27,8 @@ export function showScreen(id) {
   for (const el of document.querySelectorAll('.screen')) el.classList.toggle('active', el.id === id);
 }
 
-export function buildShop(onBuy) {
+/** `onUse` receives a slot index; the caller resolves it against its predicted items. */
+export function buildShop(onBuy, onUse) {
   const shop = $('#shop');
   shop.innerHTML = '';
   for (const g of SHOP_GROUPS) {
@@ -33,8 +36,24 @@ export function buildShop(onBuy) {
     tray.className = `tray ${g.cls}`;
     tray.setAttribute('role', 'group');
     tray.setAttribute('aria-label', g.name);
-    tray.style.setProperty('--n', g.items.length);
+    tray.style.setProperty('--n', g.slots ?? g.items.length);
     tray.innerHTML = `<span class="tray-badge" aria-hidden="true">${icon(g.glyph, { size: 16, width: 3 })}</span>`;
+    for (let i = 0; i < (g.slots ?? 0); i++) {
+      const el = document.createElement('button');
+      el.className = 'tile slot empty';
+      el.dataset.slot = i;
+      el.tabIndex = -1;
+      el.innerHTML = '<span class="tile-face">'
+        + '<svg class="ring" viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="45"></circle></svg>'
+        + `<span class="slot-art">${tileArt('crate')}</span>`
+        + (i === 0 ? `<kbd class="key">${ITEM_KEY}</kbd>` : '')
+        + '</span><span class="cost"><span></span></span>';
+      el.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        onUse(i);
+      });
+      tray.appendChild(el);
+    }
     for (const id of g.items) {
       const it = SHOP_ITEMS.find((x) => x.id === id);
       const el = document.createElement('button');
@@ -65,7 +84,7 @@ export function buildMiners() {
 }
 
 export function flashShop(id, ok) {
-  const el = document.querySelector(`.tile[data-id="${id}"]`);
+  const el = document.querySelector(typeof id === 'number' ? `.slot[data-slot="${id}"]` : `.tile[data-id="${id}"]`);
   if (!el) return;
   const cls = ok ? 'flash' : 'denied';
   el.classList.remove(cls);
@@ -165,10 +184,10 @@ function updateTile(el, me, snap) {
     fills = SPELLS[id].costs.map((_, i) => (i < me[id] ? 1 : 0));
     color = '#F2B705';
   } else {
-    cd = Math.ceil(id === 'frost' ? me.frostCd : id === 'repair' ? me.repairCd : 0);
+    cd = Math.ceil(id === 'frost' ? me.frostCd : 0);
   }
   const afford = cost != null && me.gold >= cost;
-  const usable = purchase(me, id, { ended: !!snap.winner, suddenDeath: snap.suddenDeath, tutorial: snap.tutorial }).available;
+  const usable = purchase(me, id, { ended: !!snap.winner, tutorial: snap.tutorial }).available;
   el.disabled = !usable;
 
   const sig = `${fills.join(',')}|${cost}|${afford}|${cd}|${usable}`;
@@ -247,10 +266,34 @@ export function updateHud({ snap, you, mode, lock, danger }) {
   }
   lastCombo = me.combo;
 
-  for (const el of document.querySelectorAll('.tile')) updateTile(el, me, snap);
+  for (const el of document.querySelectorAll('.tile[data-id]')) updateTile(el, me, snap);
+  for (const el of document.querySelectorAll('.slot')) updateSlot(el, me, snap);
 
   renderOres(me, lock);
   renderOppRocks(op);
+}
+
+/** Item slots show held items' contents; airdrop contents are only revealed to the winner. */
+function updateSlot(el, me, snap) {
+  const i = Number(el.dataset.slot);
+  const item = me.items[i];
+  const usable = !!item && itemUse(me, item.id, { ended: !!snap.winner, suddenDeath: snap.suddenDeath, tutorial: snap.tutorial }).available;
+  const sig = `${item?.id}|${usable}`;
+  if (lastTileSig.get(`slot${i}`) === sig) return;
+  lastTileSig.set(`slot${i}`, sig);
+  const def = item && ITEMS[item.type];
+  el.disabled = !usable;
+  el.classList.toggle('empty', !item);
+  el.classList.toggle('unusable', !!item && !usable);
+  if (item) {
+    el.classList.remove('got');
+    void el.offsetWidth;
+    el.classList.add('got');
+  }
+  el.querySelector('.slot-art').innerHTML = tileArt(def ? item.type : 'crate');
+  el.querySelector('.cost span').textContent = def ? def.name : 'Empty';
+  el.title = def ? `${def.name}: ${def.desc}` : 'Empty slot: win airdrops in Fight mode';
+  el.setAttribute('aria-label', def ? `${def.name}, ${def.desc}${usable ? '' : ', cannot use now'}` : 'Empty item slot');
 }
 
 function renderOres(me, lock) {
@@ -325,6 +368,7 @@ const STAT_ROWS = [
   ['Mobs killed', 'mobsKilled'],
   ['Damage dealt', 'damageDealt'],
   ['Spells cast', 'spells'],
+  ['Airdrops won', 'airdrops'],
 ];
 
 export function showEnd({ winner, reason, time, stats }, you, names) {

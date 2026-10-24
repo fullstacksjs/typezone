@@ -1,5 +1,6 @@
 import { purchase } from '../shared/shop.js';
-import { LANE_LENGTH, MOBS, SPELLS, BASE_HP, ULT_MAX, BOT_LEVELS, SUDDEN_DEATH_AT } from '../shared/config.js';
+import { canClaim, itemUse } from '../shared/items.js';
+import { LANE_LENGTH, SPELLS, BASE_HP, ULT_MAX, BOT_LEVELS, SUDDEN_DEATH_AT, ITEM_SLOTS } from '../shared/config.js';
 
 const SEND_WEIGHTS = [['goblin', 4], ['knight', 3], ['slime', 3], ['giant', 1.5]];
 
@@ -45,9 +46,10 @@ export class Bot {
     const me = this.me;
     const threats = this.threats();
 
-    // Decide which mode we want to be in.
+    // Decide which mode we want to be in. A falling crate is worth leaving the mine for.
     const urgent = threats.some((m) => m.d > LANE_LENGTH * 0.4) || threats.length >= 3;
-    const want = urgent ? 'fight' : 'gather';
+    const crate = !!game.airdrop && me.items.length < ITEM_SLOTS;
+    const want = urgent || crate ? 'fight' : 'gather';
     if (want !== me.mode) {
       if (this.switchDelay <= 0) this.switchDelay = this.cfg.reaction * (0.6 + Math.random() * 0.8);
       this.switchDelay -= dt;
@@ -76,6 +78,14 @@ export class Bot {
   }
 
   typeFight(threats) {
+    const drop = this.game.airdrop;
+    const close = threats.some((m) => m.d > LANE_LENGTH * 0.6);
+    if (drop && !close && canClaim(this.me)) {
+      const typed = drop.typed[this.slot] + 1;
+      if (typed >= drop.word.length) this.game.claim(this.slot, drop.id);
+      else this.game.claimProgress(this.slot, drop.id, typed);
+      return;
+    }
     const mob = threats.find((m) => this.game.mobs.includes(m));
     if (!mob) return;
     const word = mob.words[mob.wi];
@@ -103,12 +113,13 @@ export class Bot {
   shop(threats) {
     const game = this.game;
     const me = this.me;
-    const legal = (item, gold = me.gold) => purchase({ ...me, gold }, item, {
-      ended: !!game.winner, suddenDeath: game.time >= SUDDEN_DEATH_AT,
-    }).available;
+    const legal = (item, gold = me.gold) => purchase({ ...me, gold }, item, { ended: !!game.winner }).available;
     if (me.ult >= ULT_MAX && threats.length >= 3) return game.ultimate(this.slot);
-    if (me.hp < BASE_HP * 0.5 && legal('repair') && Math.random() < 0.5) {
-      return game.buy(this.slot, 'repair');
+    const heal = me.items.find((it) => it.type === 'heal');
+    if (heal && me.hp < BASE_HP * 0.6 && itemUse(me, heal.id, {
+      ended: !!game.winner, suddenDeath: game.time >= SUDDEN_DEATH_AT,
+    }).available) {
+      return game.useItem(this.slot, heal.id);
     }
     if (threats.length >= 4 && legal('frost')) {
       return game.buy(this.slot, 'frost');

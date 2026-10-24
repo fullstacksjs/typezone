@@ -75,6 +75,8 @@ export const sfx = {
     noise({ dur: 0.6, vol: 0.5, filter: 4000 });
     tone({ freq: 80, to: 40, dur: 0.6, type: 'sawtooth', vol: 0.3 });
   },
+  airdrop: () => [660, 880, 660].forEach((f, i) => tone({ freq: f, dur: 0.1, type: 'triangle', vol: 0.15, delay: i * 0.1 })),
+  claim: () => [784, 988, 1319].forEach((f, i) => tone({ freq: f, dur: 0.12, type: 'square', vol: 0.12, delay: i * 0.07 })),
   switch: () => tone({ freq: 700, to: 900, dur: 0.06, type: 'triangle', vol: 0.12 }),
   count: (go) => tone({ freq: go ? 880 : 440, dur: go ? 0.4 : 0.15, type: 'square', vol: 0.2 }),
   win: () => [523, 659, 784, 1047].forEach((f, i) => tone({ freq: f, dur: 0.25, type: 'square', vol: 0.15, delay: i * 0.12 })),

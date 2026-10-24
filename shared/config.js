@@ -12,7 +12,7 @@ export const OVERTIME_AT = 150; // seconds; mobs speed up over time, income doub
 export const OVERTIME_SPEED = 1.25; // speed multiplier when overtime begins
 export const OVERTIME_RAMP = 0.15; // extra speed multiplier per 30s of overtime
 export const OVERTIME_INCOME = 2;
-export const SUDDEN_DEATH_AT = 300; // both bases crumble from here on; repair is disabled
+export const SUDDEN_DEATH_AT = 300; // both bases crumble from here on; no airdrops or healing
 export const SUDDEN_DEATH_DPS = 1;
 
 // Gathering
@@ -63,8 +63,20 @@ export const SPELLS = {
   drill: { key: '0', name: 'Drill Sergeant', costs: [60, 100, 150], reduction: 0.15, desc: 'Recharge mobs 15% faster' },
   frost: { key: '5', name: 'Frost', cost: 40, duration: 6, cooldown: 15, slow: 0.4, desc: 'Slow incoming mobs 60%' },
   fog: { key: '6', name: 'Fog', cost: 45, duration: 7, desc: "Blur the opponent's words" },
-  repair: { key: '7', name: 'Repair', cost: 50, amount: 15, cooldown: 20, desc: '+15 base HP' },
   pickaxe: { key: '8', name: 'Pickaxe', costs: [40, 70, 110, 160], bonus: 0.25, desc: '+25% gather gold' },
+};
+
+// Airdrops: a crate with a hidden item falls over the field. The first player to type its word in Fight mode claims it.
+export const AIRDROP = {
+  first: 30, // seconds into the match
+  interval: [35, 45], // seconds between one crate resolving and the next appearing
+  fall: 12, // seconds before an unclaimed crate is lost
+  len: [6, 9],
+};
+export const ITEM_SLOTS = 2;
+export const ITEM_KEY = '7'; // uses the oldest held item
+export const ITEMS = {
+  heal: { name: 'Heal', amount: 20, weight: 1, desc: '+20 base HP' },
 };
 
 export const BOT_LEVELS = {

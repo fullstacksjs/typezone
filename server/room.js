@@ -1,5 +1,5 @@
 import { TICK_MS, COUNTDOWN_SECONDS, BOT_LEVELS } from '../shared/config.js';
-import { Game } from './game.js';
+import { Game, redact } from './game.js';
 import { Bot } from './bot.js';
 import { Tutorial } from './tutorial.js';
 
@@ -119,7 +119,7 @@ export class Room {
       last = now;
       this.bot?.update(dt);
       this.game.update(dt);
-      this.broadcast({ t: 'state', ...this.snapshot() });
+      this.broadcastState();
       if (this.game.winner) this.finish('base');
     }, TICK_MS);
   }
@@ -128,11 +128,19 @@ export class Room {
     return { ...this.game.snapshot(), processed: { ...this.processed } };
   }
 
+  /** Each seat gets its own view so hidden airdrop contents stay hidden. */
+  broadcastState() {
+    const snapshot = this.snapshot();
+    for (const [slot, seat] of Object.entries(this.seats)) {
+      if (seat?.ws) this.send(seat.ws, { t: 'state', ...redact(snapshot, slot) });
+    }
+  }
+
   finish(reason) {
     if (this.state !== 'playing') return;
     clearInterval(this.loop);
     this.state = 'ended';
-    this.broadcast({ t: 'state', ...this.snapshot() });
+    this.broadcastState();
     this.broadcast({ t: 'end', reason, ...this.game.summary() });
     this.broadcast(this.lobbyInfo());
   }
@@ -165,6 +173,9 @@ export class Room {
       case 'miss': return g.miss(slot);
       case 'buy': return g.buy(slot, String(msg.item));
       case 'ult': return g.ultimate(slot);
+      case 'dropProgress': return g.claimProgress(slot, msg.id, msg.typed);
+      case 'claim': return g.claim(slot, msg.id);
+      case 'use': return g.useItem(slot, msg.id);
       default:
     }
   }

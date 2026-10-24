@@ -24,14 +24,14 @@ test('rapid Pickaxe purchases predict cumulative prices and reconcile once', () 
 import { Bot } from '../server/bot.js';
 import { SUDDEN_DEATH_AT } from '../shared/config.js';
 
-test('bot skips forbidden Repair in sudden death and makes a useful purchase', (t) => {
+test('bot keeps a forbidden Heal in sudden death and makes a useful purchase', (t) => {
   t.mock.method(Math, 'random', () => 0);
   const game = new Game();
   game.time = SUDDEN_DEATH_AT;
-  Object.assign(game.players.p1, { hp: 20, gold: 200, pickaxe: 4, luck: 3, drill: 3 });
+  Object.assign(game.players.p1, { hp: 20, gold: 200, pickaxe: 4, luck: 3, drill: 3, items: [{ id: 900, type: 'heal' }] });
   new Bot(game, 'p1').shop([]);
   assert.equal(game.players.p2.fog, 7);
-  assert.equal(game.players.p1.repairCd, 0);
+  assert.equal(game.players.p1.items.length, 1);
 });
 
 import { purchase } from '../shared/shop.js';
@@ -56,10 +56,7 @@ test('all callers share charge, cooldown, health, end and tutorial legality', ()
     assert.equal(purchase(p, item).available, false);
     assert.equal(game.buy('p1', item), false);
   }
-  assert.equal(purchase(p, 'repair').available, false);
   p.hp = 50;
-  assert.equal(purchase(p, 'repair', { suddenDeath: true }).available, false);
-  assert.ok(game.buy('p1', 'repair'));
   assert.equal(purchase(p, 'repair').available, false);
   assert.ok(game.buy('p1', 'frost'));
   assert.equal(purchase(p, 'frost').available, false);

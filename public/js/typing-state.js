@@ -1,4 +1,7 @@
 import { LANE_LENGTH } from '../../shared/config.js';
+import { canClaim } from '../../shared/items.js';
+
+const COMPLETE = { ore: 'gather', mob: 'hit', drop: 'claim' };
 
 /** Owns targets and pending completions. No drawing, audio or transport. */
 export class TypingState {
@@ -17,7 +20,8 @@ export class TypingState {
       const { snap, mode } = this.view;
       const target = this.lock.kind === 'ore'
         ? snap.players[this.you].ores.find((o) => o.id === this.lock.id && mode === 'gather')
-        : snap.mobs.find((m) => m.id === this.lock.id && m.wi === this.lock.wi && mode === 'fight');
+        : this.lock.kind === 'drop' ? snap.airdrop?.id === this.lock.id && mode === 'fight'
+          : snap.mobs.find((m) => m.id === this.lock.id && m.wi === this.lock.wi && mode === 'fight');
       if (!target) this.drop();
     }
     this.view.snap.events = snapshot.events.map((e) => {
@@ -36,6 +40,7 @@ export class TypingState {
       if (a.t === 'mode') player.mode = a.mode;
       if (a.t === 'miss') player.combo = 0;
       if (a.t === 'gather' && player.mode === 'gather') player.ores = player.ores.filter((o) => o.id !== a.id);
+      if (a.t === 'claim' && snap.airdrop?.id === a.id) snap.airdrop = null;
       if (a.t === 'hit' && player.mode === 'fight') {
         const mob = snap.mobs.find((m) => m.id === a.id);
         if (mob && mob.wi === a.wi) {
@@ -65,6 +70,11 @@ export class TypingState {
   target(ch) {
     const { snap, mode } = this.view;
     if (mode === 'fight') {
+      // The crate is contested, so it wins a shared first letter.
+      const drop = snap.airdrop;
+      if (drop && drop.word[0] === ch && canClaim(snap.players[this.you])) {
+        return { kind: 'drop', id: drop.id, wi: 0, typed: 0, word: drop.word };
+      }
       const distance = (m) => this.you === 'p1' ? m.x : LANE_LENGTH - m.x;
       const mob = snap.mobs.filter((m) => m.target === this.you && m.words[m.wi]?.[0] === ch)
         .sort((a, b) => distance(a) - distance(b))[0];
@@ -89,12 +99,14 @@ export class TypingState {
     this.lock = lock;
     this.view.lock = lock;
     if (lock.typed < lock.word.length) {
-      return { lock, action: lock.kind === 'mob' ? { t: 'progress', id: lock.id, wi: lock.wi, typed: lock.typed, seq } : null };
+      const progress = lock.kind === 'mob' ? { t: 'progress', id: lock.id, wi: lock.wi, typed: lock.typed, seq }
+        : lock.kind === 'drop' ? { t: 'dropProgress', id: lock.id, typed: lock.typed, seq } : null;
+      return { lock, action: progress };
     }
-    const action = { t: lock.kind === 'ore' ? 'gather' : 'hit', id: lock.id, wi: lock.wi, seq };
+    const action = { t: COMPLETE[lock.kind], id: lock.id, wi: lock.wi, seq };
     const mob = this.view.snap.mobs.find((m) => m.id === lock.id);
     const armor = lock.kind === 'mob' && lock.wi + 1 < mob.words.length;
-    const feedback = lock.kind === 'ore' ? 'gather' : armor ? 'armor' : 'kill';
+    const feedback = lock.kind === 'mob' ? (armor ? 'armor' : 'kill') : COMPLETE[lock.kind];
     if (feedback === 'kill') this.predictedKills.add(lock.id);
     this.pending.push(action);
     this.lock = armor ? { ...lock, wi: lock.wi + 1, typed: 0, word: mob.words[lock.wi + 1] } : null;

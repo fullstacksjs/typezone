@@ -2,7 +2,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Game } from '../server/game.js';
 import { Bot } from '../server/bot.js';
-import { MOBS, SPELLS, LANE_LENGTH, BASE_HP, ULT_MAX, START_GOLD, ORE_COUNT } from '../shared/config.js';
+import {
+  MOBS, SPELLS, LANE_LENGTH, BASE_HP, ULT_MAX, START_GOLD, ORE_COUNT, SUDDEN_DEATH_AT,
+} from '../shared/config.js';
 
 test('gathering an ore pays gold, builds combo and replaces the ore', () => {
   const g = new Game();
@@ -99,15 +101,14 @@ test('frost slows mobs heading at the caster', () => {
   assert.ok(Math.abs(b.d - normal * SPELLS.frost.slow) < 1e-6);
 });
 
-test('fog hits the opponent, repair heals, pickaxe upgrades', () => {
+test('fog hits the opponent, Repair is no longer for sale, pickaxe upgrades', () => {
   const g = new Game();
   g.players.p1.gold = 1000;
   g.buy('p1', 'fog');
   assert.equal(g.players.p2.fog, SPELLS.fog.duration);
-  assert.ok(!g.buy('p1', 'repair'), 'cannot repair at full hp');
   g.players.p1.hp = 50;
-  g.buy('p1', 'repair');
-  assert.equal(g.players.p1.hp, 50 + SPELLS.repair.amount);
+  assert.equal(g.buy('p1', 'repair'), false);
+  assert.equal(g.players.p1.hp, 50);
   for (let i = 0; i < 10; i++) g.buy('p1', 'pickaxe');
   assert.equal(g.players.p1.pickaxe, SPELLS.pickaxe.costs.length);
 });
@@ -242,20 +243,20 @@ test('Frost cooldown runs from cast, rejects recasts, and expires after 15 secon
   assert.equal(g.buy('p1', 'frost'), true);
 });
 
-test('Repair cooldown rejects recasts until 20 seconds after cast', () => {
+test('Heal restores HP once, never above full and never in sudden death', () => {
   const g = new Game();
   const p = g.players.p1;
-  p.gold = 1000;
+  p.items.push({ id: 900, type: 'heal' }, { id: 901, type: 'heal' });
+  assert.equal(g.useItem('p1', 900), false, 'cannot heal at full hp');
+  p.hp = 90;
+  assert.equal(g.useItem('p1', 900), true);
+  assert.equal(p.hp, BASE_HP);
+  assert.deepEqual(p.items.map((it) => it.id), [901]);
+  assert.equal(g.useItem('p1', 900), false, 'a used item is gone');
   p.hp = 50;
-  assert.equal(g.buy('p1', 'repair'), true);
-  assert.equal(p.repairCd, 20);
-  g.update(10);
-  const before = p.gold;
-  assert.equal(g.buy('p1', 'repair'), false);
-  assert.equal(p.gold, before);
-  assert.equal(g.snapshot().players.p1.repairCd, 10);
-  g.update(10);
-  assert.equal(g.buy('p1', 'repair'), true);
+  g.time = SUDDEN_DEATH_AT;
+  assert.equal(g.useItem('p1', 901), false);
+  assert.equal(p.hp, 50);
 });
 
 test('Luck and Drill Sergeant use their level costs and cap at three', () => {
