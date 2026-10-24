@@ -52,10 +52,10 @@ New players can choose **Learn by playing** for a guided tutorial on the real ba
 ## Layout
 
 - `server/game.js`: authoritative match simulation; composes the systems below and validates commands
-- `server/match/`: one system per mechanic: `Player` state, `MatchClock` phases, `Mine` (ores), `Battlefield` (mobs), `AirdropSupply` (crates)
-- `server/tutorial.js`: decorates a `Game` built with tutorial collaborators (frozen clock, no crates, enemy hold line)
+- `server/match/`: one system per mechanic: `Player` state, `MatchClock` phases, `Mine` (ores), `Battlefield` (mobs), `AirdropSupply` (crates), plus `commands.js`, the table mapping wire actions to `Game` commands
+- `server/tutorial.js`: gates wire actions with the lesson policy and runs them on a `Game` built with tutorial collaborators (frozen clock, no crates, enemy hold line); a lesson script advances from each result
 - `server/bot.js`: simulated typist for practice mode
 - `server/room.js`: lobby, countdown, 20 Hz tick loop, rematch, forfeits
 - `server/index.js`: static file server + WebSocket entry point
 - `shared/`: tuning constants, the word list and the offer/item catalogs, used by both server and client
-- `public/`: browser client (canvas battlefield, DOM HUD, WebAudio sfx); no build step
+- `public/`: browser client; no build step. `js/main.js` wires the pieces: `session.js` (sequence, prediction and the drawn view, no DOM), `feedback.js` (frame events to sound, particles and alerts), `connection.js` (WebSocket), `render.js` (canvas), `ui.js` (DOM HUD), `tutorial.js` (lesson overlay)

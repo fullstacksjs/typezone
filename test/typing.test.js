@@ -20,7 +20,7 @@ test('third tutorial ore stays hidden before processing and returns after reject
   assert.equal(state.view.snap.players.p1.ores.some((o) => o.id === ores[2].id), false);
   state.receive(frame(0));
   assert.equal(state.view.snap.players.p1.ores.some((o) => o.id === ores[2].id), false);
-  for (const action of actions) game.gather('p1', action.id);
+  for (const action of actions) game.apply('p1', action);
   state.receive(frame(seq));
   assert.equal(state.view.snap.tutorial.id, 'send');
   assert.equal(state.view.snap.players.p1.ores.some((o) => o.id === ores[2].id), true);
@@ -92,7 +92,7 @@ test('expiry, mob removal and rejected mode changes drop stale locks', () => {
   lessonState.receive(tutorial.snapshot());
   lessonState.setMode('fight', 1);
   assert.equal(lessonState.view.mode, 'fight');
-  tutorial.setMode('p1', 'fight');
+  tutorial.apply('p1', { t: 'mode', mode: 'fight' });
   lessonState.receive({ ...tutorial.snapshot(), processed: { p1: 1 } });
   assert.equal(lessonState.view.mode, 'gather');
 });

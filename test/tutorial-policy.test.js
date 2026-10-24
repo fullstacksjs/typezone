@@ -6,38 +6,30 @@ import { purchase } from '../shared/shop.js';
 
 test('guidance and buying agree on Gather before the Pickaxe lesson', () => {
   const game = new Tutorial();
-  for (let i = 0; i < 2; i++) game.gather('p1', game.players.p1.ores[0].id);
-  game.buy('p1', 'goblin');
-  game.setMode('p1', 'fight');
+  for (let i = 0; i < 2; i++) game.apply('p1', { t: 'gather', id: game.players.p1.ores[0].id });
+  game.apply('p1', { t: 'buy', item: 'goblin' });
+  game.apply('p1', { t: 'mode', mode: 'fight' });
   const enemy = game.mobs.find((m) => m.target === 'p1');
-  game.hitMob('p1', enemy.id, 0);
-  game.ultimate('p1');
+  game.apply('p1', { t: 'hit', id: enemy.id, wi: 0 });
+  game.apply('p1', { t: 'ult' });
   let lesson = game.snapshot().tutorial;
   let policy = tutorialPolicy(lesson, 'fight');
   assert.equal(policy.guidance.focus, 'mode-key');
   assert.equal(policy.guidance.title, 'Back to Gather');
   assert.equal(policy.allows({ t: 'buy', item: 'pickaxe' }), false);
   assert.equal(purchase(game.players.p1, 'pickaxe', { tutorial: lesson }).available, false);
-  assert.equal(game.buy('p1', 'pickaxe'), false);
+  assert.equal(game.apply('p1', { t: 'buy', item: 'pickaxe' }), false);
   assert.equal(policy.allows({ t: 'mode', mode: 'gather' }), true);
-  game.setMode('p1', 'gather');
+  game.apply('p1', { t: 'mode', mode: 'gather' });
   policy = tutorialPolicy(lesson, 'gather');
   assert.equal(policy.guidance.item, 'pickaxe');
   assert.equal(policy.allows({ t: 'buy', item: 'pickaxe' }), true);
-  assert.ok(game.buy('p1', 'pickaxe'));
+  assert.ok(game.apply('p1', { t: 'buy', item: 'pickaxe' }));
   assert.equal(tutorialPolicy(game.snapshot().tutorial, 'gather').complete, true);
 });
 
 function perform(game, action, slot = 'p1') {
-  switch (action.t) {
-    case 'gather': return game.gather(slot, action.id);
-    case 'buy': return game.buy(slot, action.item);
-    case 'mode': return game.setMode(slot, action.mode);
-    case 'hit': return game.hitMob(slot, action.id, action.wi);
-    case 'ult': return game.ultimate(slot);
-    case 'progress': return game.progress(slot, action.id, action.wi, 1);
-    case 'miss': return game.miss(slot);
-  }
+  return game.apply(slot, action.t === 'progress' ? { ...action, typed: 1 } : action);
 }
 
 function nextAction(game) {

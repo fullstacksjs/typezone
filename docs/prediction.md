@@ -21,3 +21,9 @@ The `view` interface supplies a coherent snapshot, mode and lock. Pending ores a
 In Fight mode the airdrop word takes priority over mobs that share its first letter. Spawned words avoid that letter. A pending claim hides the crate. When the opponent wins the race, the next frame has no crate, and the lock is released.
 
 The module includes target priority, pending actions and reconciliation behind one interface. That depth gives callers leverage without exposing a second representation of hidden targets. Game and Tutorial remain adapters at Room's existing match seam.
+
+# Match session
+
+`MatchSession` (`public/js/session.js`) is the browser's single interface to prediction. It owns the match-local action sequence, a `ShopPrediction` and a `TypingState`, and composes their outputs into one `view` (`snap`, `mode`, `lock`) with the shop-predicted player layered over the typing view. Its commands (`type`, `setMode`, `buy`, `use`, `ultimate`, `dropLock`) apply the lesson policy and return the wire action to send, or null when the input is refused locally. Refusals consume no sequence. It has no DOM, audio or transport, so the input handler stays a thin adapter and the session is tested in Node. `main.js` constructs a fresh session wherever prediction is discarded. On `end` it seeds the new session with the last authoritative frame so the final battlefield stays visible.
+
+`MatchFeedback` (`public/js/feedback.js`) turns each frame's events and the opponent's live typing into sound, particles and alerts. Local keystroke feedback stays with the input handler.

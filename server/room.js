@@ -159,24 +159,11 @@ export class Room {
     }
 
     if (this.state !== 'playing') return;
-    const g = this.game;
     // WebSocket delivery is ordered. This watermark means processed, not accepted.
     if (Number.isSafeInteger(msg.seq) && msg.seq > 0) {
       if (msg.seq <= this.processed[slot]) return;
       this.processed[slot] = msg.seq;
     }
-    switch (msg.t) {
-      case 'mode': return g.setMode(slot, msg.mode);
-      case 'gather': return g.gather(slot, msg.id);
-      case 'progress': return g.progress(slot, msg.id, msg.wi, msg.typed);
-      case 'hit': return g.hitMob(slot, msg.id, msg.wi);
-      case 'miss': return g.miss(slot);
-      case 'buy': return g.buy(slot, String(msg.item));
-      case 'ult': return g.ultimate(slot);
-      case 'dropProgress': return g.claimProgress(slot, msg.id, msg.typed);
-      case 'claim': return g.claim(slot, msg.id);
-      case 'use': return g.useItem(slot, msg.id);
-      default:
-    }
+    this.game.apply(slot, msg);
   }
 }

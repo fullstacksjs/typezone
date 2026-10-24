@@ -1,16 +1,47 @@
 import { lessonAt, tutorialPolicy } from '../shared/tutorial-policy.js';
 import { Game } from './game.js';
 import { FrozenClock } from './match/clock.js';
+import { runCommand } from './match/commands.js';
 import { PICKAXE } from '../shared/shop.js';
 import { ULT_MAX } from '../shared/config.js';
 
 const HOLD_LINE = 450; // enemies stop before reaching the learner's base
 
 /**
+ * What finishes each lesson, and what the next lesson needs set up. `passed`
+ * sees the action and the real match's result, so progress follows accepted
+ * commands, never Game's internal statistics.
+ */
+const SCRIPT = {
+  mine: { passed: (action, result, tutorial) => action.t === 'gather' && result && ++tutorial.mined === 2 },
+  send: {
+    passed: (action, result) => action.t === 'buy' && result,
+    next: (game) => game.spawnMob('p2', 'goblin', 350, 1),
+  },
+  switch: { passed: (action, result) => action.t === 'mode' && result },
+  defend: {
+    passed: (action, result) => action.t === 'hit' && result === 'kill',
+    next: (game) => {
+      game.players.p1.ult = ULT_MAX;
+      game.spawnMob('p2', 'goblin', 350, 0);
+      game.spawnMob('p2', 'goblin', 400, 2);
+    },
+  },
+  lightning: {
+    passed: (action, result) => action.t === 'ult' && result,
+    next: (game) => {
+      const p = game.players.p1;
+      p.gold = Math.max(p.gold, PICKAXE.cost(p));
+    },
+  },
+  upgrade: { passed: (action, result) => action.t === 'buy' && result },
+};
+
+/**
  * A private, action-driven lesson. It decorates a normal Game configured with
  * tutorial collaborators: a frozen clock, no crates and a hold line for enemies.
- * Each command passes the lesson policy, runs on the real match, and advances the
- * lesson from the command's result.
+ * Each action passes the lesson policy, runs on the real match through the
+ * shared command table, and the lesson script advances from the result.
  */
 export class Tutorial {
   constructor() {
@@ -46,64 +77,17 @@ export class Tutorial {
 
   speedOf(mob) { return this.game.speedOf(mob); }
 
-  spawnMob(...args) { return this.game.spawnMob(...args); }
-
   // ---------------------------------------------------------------- commands
-  progress(slot, id, wi, typed) {
-    if (this.allows(slot, { t: 'progress' })) this.game.progress(slot, id, wi, typed);
-  }
-
-  miss(slot) {
-    if (this.allows(slot, { t: 'miss' })) this.game.miss(slot);
-  }
-
-  gather(slot, id) {
-    if (!this.allows(slot, { t: 'gather' }) || !this.game.gather(slot, id)) return false;
-    if (++this.mined === 2) this.step++;
-    return true;
-  }
-
-  buy(slot, item) {
-    if (!this.allows(slot, { t: 'buy', item }) || !this.game.buy(slot, item)) return false;
-    this.step++;
-    if (item === 'goblin') this.game.spawnMob('p2', 'goblin', 350, 1);
-    return true;
-  }
-
-  setMode(slot, mode) {
-    if (!this.allows(slot, { t: 'mode', mode }) || !this.game.setMode(slot, mode)) return false;
-    if (this.lesson.id === 'switch') this.step++;
-    return true;
-  }
-
-  hitMob(slot, id, wi) {
-    if (!this.allows(slot, { t: 'hit' })) return null;
-    const result = this.game.hitMob(slot, id, wi);
-    if (result !== 'kill') return result;
-    this.step++;
-    this.players.p1.ult = ULT_MAX;
-    this.game.spawnMob('p2', 'goblin', 350, 0);
-    this.game.spawnMob('p2', 'goblin', 400, 2);
+  /** Runs a permitted wire action on the match. Denied actions return false. */
+  apply(slot, action) {
+    if (!this.allows(slot, action)) return false;
+    const result = runCommand(this.game, slot, action);
+    const lesson = SCRIPT[this.lesson.id];
+    if (lesson?.passed(action, result, this)) {
+      this.step++;
+      lesson.next?.(this.game);
+    }
     return result;
-  }
-
-  ultimate(slot) {
-    if (!this.allows(slot, { t: 'ult' }) || !this.game.ultimate(slot)) return false;
-    this.step++;
-    this.players.p1.gold = Math.max(this.players.p1.gold, PICKAXE.cost(this.players.p1));
-    return true;
-  }
-
-  claimProgress(slot, id, typed) {
-    if (this.allows(slot, { t: 'claim' })) this.game.claimProgress(slot, id, typed);
-  }
-
-  claim(slot, id) {
-    return this.allows(slot, { t: 'claim' }) && this.game.claim(slot, id);
-  }
-
-  useItem(slot, id) {
-    return this.allows(slot, { t: 'use' }) && this.game.useItem(slot, id);
   }
 
   // ---------------------------------------------------------------- lifecycle
