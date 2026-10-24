@@ -1,15 +1,18 @@
 import { tutorialPolicy } from '../../shared/tutorial-policy.js';
-import { TypingState } from './typing-state.js?v=20261024-rules';
-import { ShopPrediction } from './shop-state.js?v=20261024-rules';
-import { BASE_HP, LANE_LENGTH, MOBS, SPELLS, ULT_MAX, comboMultiplier } from '/shared/config.js?v=20261024-wizard';
-import { Renderer } from './render.js?v=20261024-wizard';
+import { canClaim } from '../../shared/items.js';
+import { TypingState } from './typing-state.js?v=20261024-airdrop';
+import { ShopPrediction } from './shop-state.js?v=20261024-airdrop';
+import {
+  LANE_LENGTH, MOBS, SPELLS, ITEMS, ITEM_KEY, ULT_MAX, comboMultiplier,
+} from '/shared/config.js?v=20261024-airdrop';
+import { Renderer } from './render.js?v=20261024-airdrop';
 import { TutorialOverlay } from './tutorial.js?v=20261024-wizard';
-import { sfx, unlockAudio, toggleMute, isMuted } from './audio.js?v=20261024-wizard';
-import { icon } from './icons.js?v=20261024-wizard';
+import { sfx, unlockAudio, toggleMute, isMuted } from './audio.js?v=20261024-airdrop';
+import { icon } from './icons.js?v=20261024-airdrop';
 import {
   $, SHOP_ITEMS, showScreen, buildShop, buildMiners, flashShop, showAlert, flashMiss, updateHud, resetHud,
   floatGold, showEnd,
-} from './ui.js?v=20261024-wizard';
+} from './ui.js?v=20261024-airdrop';
 
 // ------------------------------------------------------------ state
 const S = {
@@ -27,6 +30,7 @@ const S = {
   typing: null,
   display: new Map(), // mobId -> displayed x
   oppTyped: new Map(), // mobId -> last seen opponent progress on our mobs
+  oppDropTyped: 0, // last seen opponent progress on the airdrop
 };
 
 const opp = () => (S.you === 'p1' ? 'p2' : 'p1');
@@ -150,6 +154,7 @@ function startMatch(tutorial = false) {
   S.lock = null;
   S.display.clear();
   S.oppTyped.clear();
+  S.oppDropTyped = 0;
   resetHud();
   sfx.count(true);
   if (!tutorial) showAlert('FIGHT! Mine gold and send your army', 'mine', 1600, 1, 'sword');
@@ -190,6 +195,9 @@ function onSnapshot(snap) {
     S.oppTyped.set(m.id, m.typed);
   }
   for (const id of S.oppTyped.keys()) if (!ids.has(id)) S.oppTyped.delete(id);
+  const rival = snap.airdrop?.typed[opp()] ?? 0;
+  if (rival > S.oppDropTyped) renderer.bolt(opp(), snap.airdrop.id);
+  S.oppDropTyped = rival;
 
   for (const e of S.snap.events) handleEvent(e);
 }
@@ -243,15 +251,37 @@ function handleEvent(e) {
       if (e.spell === 'fog' && !mine) showAlert('You have been FOGGED!', 'danger', 1600, 3, 'fog');
       else if (e.spell === 'frost') {
         showAlert(mine ? 'Frost slows the invaders' : `${S.names[opp()]} froze their side`, mine ? 'mine' : 'info', 1400, 2, 'frost');
-      } else if (e.spell === 'repair') {
-        const side = mine ? 'me' : 'opp';
-        renderer.healBase(e.slot);
-        renderer.floatAtBase(side, `+${SPELLS.repair.amount}`, '#5BB33A', 34);
       } else if (!mine) {
         showAlert(`${S.names[opp()]} cast ${name}`, 'info', 1200, 1, e.spell);
       }
       break;
     }
+    case 'airdrop':
+      sfx.airdrop();
+      showAlert(S.mode === 'fight' ? 'AIRDROP incoming! Type its word to claim it' : 'AIRDROP incoming! Switch to Fight to claim it',
+        'mine', 2200, 2, 'crate', S.mode === 'fight' ? '' : 'Tab');
+      break;
+    case 'claim':
+      if (mine) {
+        // Only the winner learns what was inside.
+        const def = ITEMS[e.item.type];
+        sfx.claim();
+        showAlert(`You got ${def.name}!`, 'mine', 2000, 2, e.item.type, `${def.desc} · press ${ITEM_KEY}`);
+      } else {
+        showAlert(`${S.names[opp()]} grabbed the airdrop`, 'info', 1600, 2, 'crate');
+      }
+      break;
+    case 'airdropLost':
+      showAlert('The airdrop was lost', 'info', 1200, 1, 'crate');
+      break;
+    case 'item':
+      if (e.type === 'heal') {
+        sfx.spell();
+        renderer.healBase(e.slot);
+        renderer.floatAtBase(mine ? 'me' : 'opp', `+${ITEMS.heal.amount}`, '#5BB33A', 34);
+        if (!mine) showAlert(`${S.names[opp()]} used ${ITEMS.heal.name}`, 'info', 1200, 1, 'heal');
+      }
+      break;
     case 'ult':
       renderer.lightning(e.targets, mine);
       sfx.ult();
@@ -261,7 +291,7 @@ function handleEvent(e) {
       showAlert('OVERTIME! Mobs keep speeding up, income doubled', 'danger', 3000, 4, 'flame');
       break;
     case 'suddenDeath':
-      showAlert('SUDDEN DEATH! Both bases crumble, no repairs', 'danger', 3500, 5, 'skull');
+      showAlert('SUDDEN DEATH! Both bases crumble, no healing', 'danger', 3500, 5, 'skull');
       break;
     default:
   }
@@ -282,9 +312,12 @@ function typeChar(ch) {
   const lock = result.lock;
   if (!lock) return;
   sfx.key(lock.typed);
-  if (lock.kind === 'mob') renderer.bolt(S.you, lock.id);
+  if (lock.kind !== 'ore') renderer.bolt(S.you, lock.id);
   const pos = renderer.mobPos.get(lock.id);
-  if (result.feedback === 'armor') {
+  if (result.feedback === 'claim') {
+    sfx.kill();
+    if (pos) renderer.killFx(pos.x, pos.y);
+  } else if (result.feedback === 'armor') {
     sfx.armor();
     if (pos) renderer.burst(pos.x, pos.y, '#c8cfdb', 10, 120);
   } else if (result.feedback === 'kill') {
@@ -314,6 +347,19 @@ function buy(id) {
   send({ t: 'buy', item: id, seq });
 }
 
+/** Use the item in a slot; the server reveals nothing new, but heals are predicted. */
+function useItem(slot) {
+  const item = me()?.items[slot];
+  if (!S.playing || !item) return sfx.denied();
+  const seq = S.seq + 1;
+  const ok = S.shop.use(item.id, seq, S.mode);
+  flashShop(slot, ok);
+  if (!ok) return sfx.denied();
+  S.seq = seq;
+  refreshView();
+  send({ t: 'use', id: item.id, seq });
+}
+
 const KEY_TO_ITEM = Object.fromEntries(SHOP_ITEMS.map((it) => [it.key, it.id]));
 
 document.addEventListener('keydown', (e) => {
@@ -339,6 +385,11 @@ document.addEventListener('keydown', (e) => {
     else sfx.denied();
     return;
   }
+  if (e.key === ITEM_KEY) {
+    e.preventDefault();
+    useItem(0);
+    return;
+  }
   if (KEY_TO_ITEM[e.key]) {
     e.preventDefault();
     buy(KEY_TO_ITEM[e.key]);
@@ -350,7 +401,7 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
-buildShop(buy);
+buildShop(buy, useItem);
 buildMiners();
 
 // ------------------------------------------------------------ frame loop
@@ -377,7 +428,10 @@ function frame(now) {
     updateHud({ snap: S.snap, you: S.you, mode: S.mode, lock: S.lock, danger });
   }
   const combo = S.snap ? `×${comboMultiplier(me().combo).toFixed(1)}` : null;
-  renderer.draw({ snap: S.snap, mobs, lock: S.lock, mode: S.mode, combo, now }, dt);
+  const drop = S.snap?.airdrop && { ...S.snap.airdrop, ttl: S.snap.airdrop.ttl - (S.playing ? (now - S.snapAt) / 1000 : 0) };
+  renderer.draw({
+    snap: S.snap, mobs, drop, canClaim: !!S.snap && canClaim(me()), lock: S.lock, mode: S.mode, combo, now,
+  }, dt);
   if (S.snap?.tutorial && $('#game').classList.contains('active')) {
     tutorial.update({ lesson: S.snap.tutorial, player: me(), mode: S.mode, lock: S.lock, renderer });
     if (tutorialPolicy(S.snap.tutorial, S.mode).complete) S.playing = false;

@@ -1,12 +1,32 @@
 import { purchase, applyPurchase } from '../shared/shop.js';
+import { canClaim, itemUse, applyItem } from '../shared/items.js';
 import {
   LANE_LENGTH, LANES, BASE_HP, START_GOLD, PASSIVE_INCOME, OVERTIME_AT, OVERTIME_INCOME,
   SUDDEN_DEATH_AT, SUDDEN_DEATH_DPS, overtimeSpeed, ORE_COUNT, ORE_LEN, GOLD_PER_CHAR, DIAMOND_MULT, DIAMOND_TTL, BOUNTY_SHARE, PRESSURE_MOBS, PRESSURE_INCOME, GOLDEN_MULT, GOLDEN_TTL,
-  ULT_MAX, ULT_PER_KILL, ULT_PER_ARMOR, ULT_PER_ORE, MOBS, SPELLS, comboMultiplier,
+  ULT_MAX, ULT_PER_KILL, ULT_PER_ARMOR, ULT_PER_ORE, MOBS, SPELLS, AIRDROP, ITEMS, comboMultiplier,
 } from '../shared/config.js';
 import { pickWord } from '../shared/words.js';
 
 const other = (slot) => (slot === 'p1' ? 'p2' : 'p1');
+const between = ([lo, hi]) => lo + Math.random() * (hi - lo);
+
+function pickItem() {
+  const entries = Object.entries(ITEMS);
+  let r = Math.random() * entries.reduce((s, [, def]) => s + def.weight, 0);
+  for (const [type, def] of entries) if ((r -= def.weight) <= 0) return type;
+  return entries[0][0];
+}
+
+/** A viewer's copy of a snapshot: the opponent's items and claims keep their contents hidden. */
+export function redact(snapshot, viewer) {
+  const foe = other(viewer);
+  const hide = (item) => ({ id: item.id, type: null });
+  return {
+    ...snapshot,
+    players: { ...snapshot.players, [foe]: { ...snapshot.players[foe], items: snapshot.players[foe].items.map(hide) } },
+    events: snapshot.events.map((e) => (e.e === 'claim' && e.slot === foe ? { ...e, item: hide(e.item) } : e)),
+  };
+}
 
 function newPlayer() {
   return {
@@ -19,14 +39,14 @@ function newPlayer() {
     luck: 0,
     drill: 0,
     frostCd: 0,
-    repairCd: 0,
+    items: [],
     charges: Object.fromEntries(Object.entries(MOBS).filter(([, def]) => !def.hidden).map(([type, def]) => [type, { n: def.charges, t: 0 }])),
     frost: 0,
     fog: 0,
     ult: 0,
     ores: [],
     stats: {
-      chars: 0, misses: 0, goldEarned: 0, mobsSent: 0, mobsKilled: 0, damageDealt: 0, spells: 0,
+      chars: 0, misses: 0, goldEarned: 0, mobsSent: 0, mobsKilled: 0, damageDealt: 0, spells: 0, airdrops: 0,
     },
   };
 }
@@ -41,6 +61,8 @@ export class Game {
     this.nextId = 1;
     this.players = { p1: newPlayer(), p2: newPlayer() };
     this.mobs = [];
+    this.airdrop = null;
+    this.nextDrop = AIRDROP.first;
     this.events = [];
     this.winner = null;
     for (const slot of ['p1', 'p2']) {
@@ -95,6 +117,10 @@ export class Game {
     const incoming = this.mobs.filter((m) => m.target === target);
     const avoid = new Set(incoming.map((m) => m.words[m.wi]?.[0]));
     const exclude = new Set(incoming.flatMap((m) => m.words));
+    if (this.airdrop) {
+      avoid.add(this.airdrop.word[0]);
+      exclude.add(this.airdrop.word);
+    }
     const words = [];
     for (let i = 0; i < def.words; i++) {
       const w = pickWord(def.len[0], def.len[1], i === 0 ? avoid : new Set(), exclude);
@@ -169,12 +195,58 @@ export class Game {
   setMode(slot, mode) {
     if (mode !== 'gather' && mode !== 'fight') return;
     this.players[slot].mode = mode;
+    if (this.airdrop && mode !== 'fight') this.airdrop.typed[slot] = 0;
+  }
+
+  // ---------------------------------------------------------------- airdrops
+  spawnAirdrop() {
+    // Both players race from Fight mode, so avoid every word either of them could be typing there.
+    const avoid = new Set(this.mobs.map((m) => m.words[m.wi]?.[0]));
+    const exclude = new Set(this.mobs.flatMap((m) => m.words));
+    const word = pickWord(AIRDROP.len[0], AIRDROP.len[1], avoid, exclude);
+    this.airdrop = { id: this.nextId++, word, item: pickItem(), ttl: AIRDROP.fall, typed: { p1: 0, p2: 0 } };
+    this.emit({ e: 'airdrop', id: this.airdrop.id });
+  }
+
+  endAirdrop() {
+    this.airdrop = null;
+    this.nextDrop = between(AIRDROP.interval);
+  }
+
+  claimProgress(slot, id, typed) {
+    const drop = this.airdrop;
+    if (!drop || drop.id !== id || !canClaim(this.players[slot])) return;
+    drop.typed[slot] = Math.max(0, Math.min(typed | 0, drop.word.length));
+  }
+
+  /** First valid claim wins; later claims find no crate. */
+  claim(slot, id) {
+    const p = this.players[slot];
+    const drop = this.airdrop;
+    if (this.winner || !drop || drop.id !== id || !canClaim(p)) return false;
+    p.combo++;
+    p.bestCombo = Math.max(p.bestCombo, p.combo);
+    p.stats.chars += drop.word.length;
+    p.stats.airdrops++;
+    const item = { id: this.nextId++, type: drop.item };
+    p.items.push(item);
+    this.endAirdrop();
+    this.emit({ e: 'claim', slot, dropId: id, item });
+    return true;
+  }
+
+  useItem(slot, id) {
+    const p = this.players[slot];
+    if (!itemUse(p, id, { ended: !!this.winner, suddenDeath: this.time >= SUDDEN_DEATH_AT }).available) return false;
+    const item = applyItem(p, id);
+    this.emit({ e: 'item', slot, type: item.type });
+    return true;
   }
 
   // ---------------------------------------------------------------- shop
   buy(slot, item) {
     const p = this.players[slot];
-    if (!purchase(p, item, { ended: !!this.winner, suddenDeath: this.time >= SUDDEN_DEATH_AT }).available) return false;
+    if (!purchase(p, item, { ended: !!this.winner }).available) return false;
     const foe = this.players[other(slot)];
     applyPurchase(p, item);
     if (MOBS[item]) {
@@ -223,7 +295,6 @@ export class Game {
       const income = PASSIVE_INCOME * dt * (this.overtime ? OVERTIME_INCOME : 1) * (pressured ? PRESSURE_INCOME : 1);
       p.gold += income;
       p.frostCd = Math.max(0, p.frostCd - dt);
-      p.repairCd = Math.max(0, p.repairCd - dt);
       for (const [type, charge] of Object.entries(p.charges)) {
         const def = MOBS[type];
         if (charge.n >= def.charges) continue;
@@ -246,6 +317,18 @@ export class Game {
           this.addOre(slot, false);
         }
       }
+    }
+
+    if (this.airdrop) {
+      this.airdrop.ttl -= dt;
+      if (this.airdrop.ttl <= 0) {
+        this.emit({ e: 'airdropLost', id: this.airdrop.id });
+        this.endAirdrop();
+      }
+    } else if (!suddenDeath) {
+      // Healing is disabled in sudden death, so crates stop falling.
+      this.nextDrop -= dt;
+      if (this.nextDrop <= 0) this.spawnAirdrop();
     }
 
     for (const mob of [...this.mobs]) {
@@ -285,7 +368,7 @@ export class Game {
         luck: p.luck,
         drill: p.drill,
         frostCd: +p.frostCd.toFixed(2),
-        repairCd: +p.repairCd.toFixed(2),
+        items: p.items.map((it) => ({ ...it })),
         pressured: this.mobs.filter((m) => m.target === slot).length >= PRESSURE_MOBS,
         charges: Object.fromEntries(Object.entries(p.charges).map(([type, charge]) => [type, {
           n: charge.n,
@@ -310,10 +393,13 @@ export class Game {
       wi: m.wi,
       typed: m.typed,
     }));
+    // The crate's contents never leave the server.
+    const drop = this.airdrop;
+    const airdrop = drop && { id: drop.id, word: drop.word, ttl: +drop.ttl.toFixed(2), typed: { ...drop.typed } };
     const events = this.events;
     this.events = [];
     return {
-      winner: this.winner, time: +this.time.toFixed(2), overtime: this.overtime, suddenDeath: this.time >= SUDDEN_DEATH_AT, players, mobs, events,
+      winner: this.winner, time: +this.time.toFixed(2), overtime: this.overtime, suddenDeath: this.time >= SUDDEN_DEATH_AT, players, mobs, airdrop, events,
     };
   }
 

@@ -8,6 +8,7 @@ export class Tutorial extends Game {
     super();
     this.step = 0;
     this.mined = 0;
+    this.nextDrop = Infinity; // lessons have no airdrops
   }
 
   get lesson() { return lessonAt(this.step); }

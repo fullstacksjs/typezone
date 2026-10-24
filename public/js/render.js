@@ -1,4 +1,4 @@
-import { LANE_LENGTH, BASE_HP } from '/shared/config.js?v=20261024-wizard';
+import { LANE_LENGTH, BASE_HP, AIRDROP } from '/shared/config.js?v=20261024-airdrop';
 import { WIZARD_ART, WIZARD_ORB } from './pixel.js?v=20261024-wizard';
 
 const C = {
@@ -316,6 +316,7 @@ export class Renderer {
       this.drawBase('me', me);
       this.drawBase('opp', opp);
       this.drawMobs(view);
+      if (view.drop) this.drawAirdrop(view);
     } else {
       // The countdown runs before the first match snapshot arrives.
       const readyBase = { hp: BASE_HP, frost: 0 };
@@ -591,6 +592,102 @@ export class Renderer {
       }
       this.drawLabel(l, { active: fight, fogged, now });
     }
+  }
+
+  /** The crate drifts down between the roads; its word sits under it and the rival's progress under that. */
+  drawAirdrop(view) {
+    const { ctx, k, ls } = this;
+    const { drop, lock, now, snap } = view;
+    const t = Math.max(0, Math.min(1, 1 - drop.ttl / AIRDROP.fall));
+    const sway = reducedMotion.matches ? 0 : Math.sin(now / 500) * 10 * k;
+    const x = this.w / 2 + sway;
+    // Starts clear of the timer tab and lands between the roads.
+    const y = (140 + t * 170) * k;
+    const s = 46 * k;
+    this.mobPos.set(drop.id, { x, y });
+
+    ctx.save();
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    ctx.lineWidth = 2.5;
+    ctx.strokeStyle = C.ink;
+    // Parachute canopy and lines.
+    const cy = y - s * 1.35;
+    ctx.beginPath();
+    for (const dx of [-0.95, -0.3, 0.3, 0.95]) {
+      ctx.moveTo(x + dx * s, cy);
+      ctx.lineTo(x + Math.sign(dx) * s * 0.35, y - s / 2);
+    }
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.ellipse(x, cy, s, s * 0.7, 0, Math.PI, 0);
+    ctx.closePath();
+    ctx.fillStyle = C.cream;
+    ctx.fill();
+    ctx.lineWidth = 4;
+    ctx.stroke();
+    ctx.fillStyle = C.danger;
+    for (const [a0, a1] of [[Math.PI, Math.PI * 1.25], [Math.PI * 1.5, Math.PI * 1.75]]) {
+      ctx.beginPath();
+      ctx.moveTo(x, cy);
+      ctx.ellipse(x, cy, s - 2, s * 0.7 - 2, 0, a0, a1);
+      ctx.closePath();
+      ctx.fill();
+    }
+    // Crate with a question mark: nobody knows what's inside.
+    ctx.beginPath();
+    ctx.roundRect(x - s / 2, y - s / 2, s, s, 5 * k);
+    ctx.fillStyle = '#C98A4B';
+    ctx.fill();
+    ctx.lineWidth = 4;
+    ctx.stroke();
+    ctx.strokeStyle = '#8E5A2B';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(x - s * 0.3, y - s / 2 + 3);
+    ctx.lineTo(x - s * 0.3, y + s / 2 - 3);
+    ctx.moveTo(x + s * 0.3, y - s / 2 + 3);
+    ctx.lineTo(x + s * 0.3, y + s / 2 - 3);
+    ctx.stroke();
+    ctx.font = `${s * 0.7}px ${DISPLAY}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = C.cream;
+    ctx.strokeStyle = C.ink;
+    ctx.lineWidth = 4;
+    ctx.strokeText('?', x, y + 2);
+    ctx.fillText('?', x, y + 2);
+    ctx.restore();
+
+    const locked = lock?.kind === 'drop' && lock.id === drop.id;
+    const l = {
+      word: drop.word, locked, typed: locked ? lock.typed : 0, danger: drop.ttl < 3, extra: 0, queue: [],
+      combo: locked ? view.combo : null,
+    };
+    this.measureLabel(l);
+    l.x = x;
+    l.y = y + s / 2 + 10 * k + l.bh / 2;
+    this.drawLabel(l, { active: view.mode === 'fight' && view.canClaim, fogged: snap.players[this.you].fog > 0, now });
+
+    // The rival's progress on the same word.
+    const rival = drop.typed[this.you === 'p1' ? 'p2' : 'p1'] / drop.word.length;
+    const bw = Math.max(60 * ls, l.bw * 0.7);
+    const bh = 8 * ls;
+    const by = l.y + l.bh / 2 + 8 * ls;
+    ctx.beginPath();
+    ctx.roundRect(x - bw / 2, by, bw, bh, 5 * ls);
+    ctx.fillStyle = C.cream;
+    ctx.fill();
+    if (rival > 0) {
+      ctx.save();
+      ctx.clip();
+      ctx.fillStyle = C.opp;
+      ctx.fillRect(x - bw / 2, by, bw * rival, bh);
+      ctx.restore();
+    }
+    ctx.lineWidth = 2.5;
+    ctx.strokeStyle = C.ink;
+    ctx.stroke();
   }
 
   /** Remaining health across all words on one of our units. */
