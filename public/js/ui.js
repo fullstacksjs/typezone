@@ -1,4 +1,4 @@
-import { itemCost, purchase } from '../../shared/shop.js';
+import { itemCost, purchase, offerOf, PICKAXE } from '../../shared/shop.js';
 import { itemUse } from '../../shared/items.js';
 export { itemCost };
 import {
@@ -184,7 +184,7 @@ function updateTile(el, me, snap) {
     fills = SPELLS[id].costs.map((_, i) => (i < me[id] ? 1 : 0));
     color = '#F2B705';
   } else {
-    cd = Math.ceil(id === 'frost' ? me.frostCd : 0);
+    cd = Math.ceil(offerOf(id).cooldown(me));
   }
   const afford = cost != null && me.gold >= cost;
   const usable = purchase(me, id, { ended: !!snap.winner, tutorial: snap.tutorial }).available;
@@ -305,7 +305,7 @@ function renderOres(me, lock) {
   if (sig === lastOreSig) return;
   lastOreSig = sig;
 
-  const mult = comboMultiplier(me.combo + 1) * (1 + me.pickaxe * SPELLS.pickaxe.bonus);
+  const mult = comboMultiplier(me.combo + 1) * PICKAXE.multiplier(me);
   const box = $('#ores');
   const existing = new Map([...box.children].map((el) => [Number(el.dataset.id), el]));
   const keep = new Set();

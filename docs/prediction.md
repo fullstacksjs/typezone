@@ -6,9 +6,11 @@
 
 Room snapshots add `processed: {p1, p2}` and `winner`. Sequenced actions at or below the watermark are ignored; legacy actions without sequences remain supported. Watermarks reset on match start. All clients and the server must be deployed together for reliable prediction correction.
 
+Each purchasable is an `Offer` subclass in `OFFERS`: `cost`, `cooldown` and `ready` decide legality, `predict` applies shared player changes, and `resolve` applies server effects through `Game.sendMob` / `castSpell`. Adding a spell or upgrade means adding one offer plus its config. `purchase`, `itemCost` and `applyPurchase` remain the call-site interface. Upgrades also expose their derived stats (`PICKAXE.multiplier`, `LUCK.odds`, `DRILL.recharge`), so no caller recomputes level math.
+
 The module's depth hides purchase knowledge behind a small interface. This gives locality to rule changes and leverage to the match, bot, input handler and tiles. No adapter abstraction is needed for these in-process rules.
 
-`shared/items.js` owns claim eligibility and item use. `ShopPrediction.use` replays item uses alongside purchases under the same watermark. The Heal effect is predicted, so HP rises immediately.
+`shared/items.js` owns claim eligibility and item use. Each `ItemKind` in `ITEM_KINDS` supplies its `usable` conditions and `apply` effect. `ShopPrediction.use` replays item uses alongside purchases under the same watermark. The Heal effect is predicted, so HP rises immediately.
 
 # Typing view
 
