@@ -1,4 +1,5 @@
-import { LANE_LENGTH, MOBS, SPELLS, BASE_HP, ULT_MAX, BOT_LEVELS, pickaxeCost } from '../shared/config.js';
+import { purchase } from '../shared/shop.js';
+import { LANE_LENGTH, MOBS, SPELLS, BASE_HP, ULT_MAX, BOT_LEVELS, SUDDEN_DEATH_AT } from '../shared/config.js';
 
 const SEND_WEIGHTS = [['goblin', 4], ['knight', 3], ['slime', 3], ['giant', 1.5]];
 
@@ -102,31 +103,32 @@ export class Bot {
   shop(threats) {
     const game = this.game;
     const me = this.me;
+    const legal = (item) => purchase(me, item, {
+      ended: !!game.winner, suddenDeath: game.time >= SUDDEN_DEATH_AT,
+    }).available;
     if (me.ult >= ULT_MAX && threats.length >= 3) return game.ultimate(this.slot);
-    if (me.hp < BASE_HP * 0.5 && me.repairCd <= 0 && me.gold >= SPELLS.repair.cost && Math.random() < 0.5) {
+    if (me.hp < BASE_HP * 0.5 && legal('repair') && Math.random() < 0.5) {
       return game.buy(this.slot, 'repair');
     }
-    if (threats.length >= 4 && me.frostCd <= 0 && me.gold >= SPELLS.frost.cost) {
+    if (threats.length >= 4 && legal('frost')) {
       return game.buy(this.slot, 'frost');
     }
     for (const upgrade of ['luck', 'drill']) {
-      const cost = SPELLS[upgrade].costs[me[upgrade]];
       const useful = upgrade === 'luck' ? game.time < 150 : Object.values(me.charges).some((c) => c.n === 0);
-      if (useful && cost != null && me.gold >= cost && Math.random() < 0.25) return game.buy(this.slot, upgrade);
+      if (useful && legal(upgrade) && Math.random() < 0.25) return game.buy(this.slot, upgrade);
     }
-    const pick = pickaxeCost(me.pickaxe);
-    if (pick != null && me.pickaxe < 2 && game.time < 120 && me.gold >= pick && Math.random() < 0.4) {
+    if (legal('pickaxe') && me.pickaxe < 2 && game.time < 120 && Math.random() < 0.4) {
       return game.buy(this.slot, 'pickaxe');
     }
-    if (me.gold >= SPELLS.fog.cost + 30 && Math.random() < 0.08) {
+    if (legal('fog') && me.gold >= SPELLS.fog.cost + 30 && Math.random() < 0.08) {
       return game.buy(this.slot, 'fog');
     }
-    if (me.charges[this.saveFor].n === 0) {
-      const available = SEND_WEIGHTS.filter(([type]) => me.charges[type].n > 0);
+    if (!legal(this.saveFor)) {
+      const available = SEND_WEIGHTS.filter(([type]) => legal(type));
       if (!available.length) return;
       this.saveFor = weightedPick(available);
     }
-    if (me.gold >= MOBS[this.saveFor].cost) {
+    if (legal(this.saveFor)) {
       game.buy(this.slot, this.saveFor);
       this.saveFor = weightedPick(SEND_WEIGHTS);
     }

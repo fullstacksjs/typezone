@@ -1,3 +1,4 @@
+import { purchase, applyPurchase } from '../shared/shop.js';
 import {
   LANE_LENGTH, LANES, BASE_HP, START_GOLD, PASSIVE_INCOME, OVERTIME_AT, OVERTIME_INCOME,
   SUDDEN_DEATH_AT, SUDDEN_DEATH_DPS, overtimeSpeed, ORE_COUNT, ORE_LEN, GOLD_PER_CHAR, DIAMOND_MULT, DIAMOND_TTL, BOUNTY_SHARE, PRESSURE_MOBS, PRESSURE_INCOME, GOLDEN_MULT, GOLDEN_TTL,
@@ -173,33 +174,17 @@ export class Game {
   // ---------------------------------------------------------------- shop
   buy(slot, item) {
     const p = this.players[slot];
-    if (this.winner) return false;
+    if (!purchase(p, item, { ended: !!this.winner, suddenDeath: this.time >= SUDDEN_DEATH_AT }).available) return false;
     const foe = this.players[other(slot)];
-
-    if (MOBS[item] && !MOBS[item].hidden) {
-      const def = MOBS[item];
-      if (p.gold < def.cost || p.charges[item].n <= 0) return false;
-      p.charges[item].n--;
-      p.gold -= def.cost;
+    applyPurchase(p, item);
+    if (MOBS[item]) {
       p.stats.mobsSent++;
       const mob = this.spawnMob(slot, item);
       this.emit({ e: 'send', slot, type: item, lane: mob.lane });
       return true;
     }
-
-    const spell = SPELLS[item];
-    if (!spell) return false;
-    const cost = spell.costs ? spell.costs[p[item]] : spell.cost;
-    if (cost == null || p.gold < cost) return false;
-    if (item === 'frost' && p.frostCd > 0) return false;
-    if (item === 'repair' && p.repairCd > 0) return false;
-    if (item === 'repair' && (p.hp >= BASE_HP || this.time >= SUDDEN_DEATH_AT)) return false;
-    p.gold -= cost;
     p.stats.spells++;
-    if (item === 'frost') { p.frost = spell.duration; p.frostCd = spell.cooldown; }
-    if (item === 'fog') foe.fog = spell.duration;
-    if (item === 'repair') { p.hp = Math.min(BASE_HP, p.hp + spell.amount); p.repairCd = spell.cooldown; }
-    if (spell.costs) p[item]++;
+    if (item === 'fog') foe.fog = SPELLS.fog.duration;
     this.emit({ e: 'spell', slot, spell: item });
     return true;
   }
@@ -328,7 +313,7 @@ export class Game {
     const events = this.events;
     this.events = [];
     return {
-      time: +this.time.toFixed(2), overtime: this.overtime, suddenDeath: this.time >= SUDDEN_DEATH_AT, players, mobs, events,
+      winner: this.winner, time: +this.time.toFixed(2), overtime: this.overtime, suddenDeath: this.time >= SUDDEN_DEATH_AT, players, mobs, events,
     };
   }
 

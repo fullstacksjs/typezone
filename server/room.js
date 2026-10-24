@@ -13,6 +13,7 @@ export class Room {
     this.seats = { p1: null, p2: null }; // { ws, name } | { bot: true, name }
     this.state = 'waiting';
     this.game = null;
+    this.processed = { p1: 0, p2: 0 };
     this.bot = null;
     this.tutorial = tutorial;
     this.botLevel = bot && BOT_LEVELS[bot] ? bot : bot ? 'normal' : null;
@@ -103,6 +104,7 @@ export class Room {
 
   startMatch() {
     this.state = 'playing';
+    this.processed = { p1: 0, p2: 0 };
     this.game = this.tutorial ? new Tutorial() : new Game();
     this.bot = this.botLevel ? new Bot(this.game, 'p2', this.botLevel) : null;
     this.broadcast({
@@ -117,16 +119,20 @@ export class Room {
       last = now;
       this.bot?.update(dt);
       this.game.update(dt);
-      this.broadcast({ t: 'state', ...this.game.snapshot() });
+      this.broadcast({ t: 'state', ...this.snapshot() });
       if (this.game.winner) this.finish('base');
     }, TICK_MS);
+  }
+
+  snapshot() {
+    return { ...this.game.snapshot(), processed: { ...this.processed } };
   }
 
   finish(reason) {
     if (this.state !== 'playing') return;
     clearInterval(this.loop);
     this.state = 'ended';
-    this.broadcast({ t: 'state', ...this.game.snapshot() });
+    this.broadcast({ t: 'state', ...this.snapshot() });
     this.broadcast({ t: 'end', reason, ...this.game.summary() });
     this.broadcast(this.lobbyInfo());
   }
@@ -146,6 +152,11 @@ export class Room {
 
     if (this.state !== 'playing') return;
     const g = this.game;
+    // WebSocket delivery is ordered. This watermark means processed, not accepted.
+    if (Number.isSafeInteger(msg.seq) && msg.seq > 0) {
+      if (msg.seq <= this.processed[slot]) return;
+      this.processed[slot] = msg.seq;
+    }
     switch (msg.t) {
       case 'mode': return g.setMode(slot, msg.mode);
       case 'gather': return g.gather(slot, msg.id);
