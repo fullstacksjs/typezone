@@ -1,3 +1,4 @@
+import { TypingState } from './typing-state.js?v=20261024-rules';
 import { ShopPrediction } from './shop-state.js?v=20261024-rules';
 import { BASE_HP, LANE_LENGTH, MOBS, SPELLS, ULT_MAX, comboMultiplier } from '/shared/config.js?v=20261024-wizard';
 import { Renderer } from './render.js?v=20261024-wizard';
@@ -22,8 +23,7 @@ const S = {
   shop: null,
   mode: 'gather',
   lock: null, // { kind: 'mob'|'ore', id, wi, typed, word }
-  killed: new Map(), // mobId -> time we killed it locally (hide until server agrees)
-  hiddenOres: new Set(),
+  typing: null,
   display: new Map(), // mobId -> displayed x
   oppTyped: new Map(), // mobId -> last seen opponent progress on our mobs
 };
@@ -41,13 +41,16 @@ function connect() {
     const ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}`);
     ws.onopen = () => resolve(ws);
     ws.onerror = () => reject(new Error('Could not reach the server.'));
-    ws.onmessage = (ev) => onMessage(JSON.parse(ev.data));
+    ws.onmessage = (ev) => { if (S.ws === ws) onMessage(JSON.parse(ev.data)); };
     ws.onclose = () => {
       if (S.ws !== ws) return;
       S.ws = null;
       if (S.you) {
+        resetPrediction();
         S.playing = false;
         S.you = null;
+        S.snap = null;
+        tutorial.hide();
         showScreen('lobby');
         $('#lobby-error').textContent = 'Disconnected from server.';
       }
@@ -81,8 +84,8 @@ function onMessage(msg) {
       }
       break;
     case 'countdown':
+      resetPrediction();
       S.snap = null;
-      S.lock = null;
       resetHud();
       enterGameScreen();
       $('#end').classList.add('hidden');
@@ -102,7 +105,7 @@ function onMessage(msg) {
       break;
     case 'end':
       S.playing = false;
-      S.lock = null;
+      resetPrediction();
       showEnd(msg, S.you, S.names);
       if (msg.winner === S.you) sfx.win();
       else sfx.lose();
@@ -140,13 +143,10 @@ function startMatch(tutorial = false) {
   $('#countdown').classList.add('hidden');
   $('#end').classList.add('hidden');
   S.playing = true;
-  S.seq = 0;
-  S.shop = new ShopPrediction(S.you);
+  resetPrediction();
   S.snap = null;
   S.mode = 'gather';
   S.lock = null;
-  S.killed.clear();
-  S.hiddenOres.clear();
   S.display.clear();
   S.oppTyped.clear();
   resetHud();
@@ -155,23 +155,31 @@ function startMatch(tutorial = false) {
 }
 
 // ------------------------------------------------------------ snapshots
+function resetPrediction() {
+  S.seq = 0;
+  S.shop = new ShopPrediction(S.you);
+  S.typing = new TypingState(S.you);
+  S.lock = null;
+  S.mode = 'gather';
+}
+
+function refreshView() {
+  const view = S.typing.view;
+  const typedPlayer = view.snap.players[S.you];
+  S.snap = { ...view.snap, players: { ...view.snap.players, [S.you]: {
+    ...S.shop.player, ores: typedPlayer.ores, mode: view.mode, combo: typedPlayer.combo,
+  } } };
+  S.mode = view.mode;
+  S.lock = view.lock;
+}
+
 function onSnapshot(snap) {
   S.shop.receive(snap);
-  S.snap = { ...snap, players: { ...snap.players, [S.you]: S.shop.player } };
+  S.typing.receive(snap);
+  refreshView();
   S.snapAt = performance.now();
-
   const ids = new Set(snap.mobs.map((m) => m.id));
-  for (const id of S.killed.keys()) if (!ids.has(id)) S.killed.delete(id);
   for (const id of S.display.keys()) if (!ids.has(id)) S.display.delete(id);
-  const oreIds = new Set(me().ores.map((o) => o.id));
-  for (const id of S.hiddenOres) if (!oreIds.has(id)) S.hiddenOres.delete(id);
-
-  // The server's mode wins if we drifted (e.g. a lost message).
-  if (snap.players[S.you].mode !== S.mode && performance.now() - (S.modeAt ?? 0) > 500) {
-    S.mode = snap.players[S.you].mode;
-  }
-
-  validateLock();
 
   // Opponent chipping away at our mobs: fire their bolts.
   for (const m of snap.mobs) {
@@ -182,21 +190,11 @@ function onSnapshot(snap) {
   }
   for (const id of S.oppTyped.keys()) if (!ids.has(id)) S.oppTyped.delete(id);
 
-  for (const e of snap.events) handleEvent(e);
-}
-
-function validateLock() {
-  const lock = S.lock;
-  if (!lock) return;
-  if (lock.kind === 'mob') {
-    const m = S.snap.mobs.find((x) => x.id === lock.id);
-    if (!m || m.wi > lock.wi || S.killed.has(lock.id)) dropLock();
-  } else if (!me().ores.some((o) => o.id === lock.id)) {
-    dropLock();
-  }
+  for (const e of S.snap.events) handleEvent(e);
 }
 
 function dropLock() {
+  S.typing?.drop();
   S.lock = null;
 }
 
@@ -212,7 +210,7 @@ function handleEvent(e) {
     case 'kill': {
       // The killer's target was coming at them: our kills land on the defend road, theirs on the attack road.
       const color = mine ? '#2F6FE0' : '#E8681C';
-      if (!(mine && S.killed.has(e.mobId))) renderer.burstAtWorld(e.x, mine, color, 16);
+      if (!e.predicted) renderer.burstAtWorld(e.x, mine, color, 16);
       if (e.type === 'slime') renderer.burstAtWorld(e.x, mine, '#8EE07A', 24, 220);
       if (mine) renderer.killAtWorld(e.x, mine, `+${e.bounty}◆`);
       if (!mine) sfx.enemyHit();
@@ -269,92 +267,40 @@ function handleEvent(e) {
 }
 
 // ------------------------------------------------------------ typing
-function incomingMobs() {
-  if (!S.snap) return [];
-  return S.snap.mobs.filter((m) => m.target === S.you && !S.killed.has(m.id));
-}
-
-function distToMyBase(m) {
-  return S.you === 'p1' ? m.x : LANE_LENGTH - m.x;
-}
-
-function findTarget(ch) {
-  if (S.mode === 'fight') {
-    const cands = incomingMobs()
-      .filter((m) => m.words[m.wi]?.[0] === ch)
-      .sort((a, b) => distToMyBase(a) - distToMyBase(b));
-    const m = cands[0];
-    return m && { kind: 'mob', id: m.id, wi: m.wi, typed: 0, word: m.words[m.wi] };
-  }
-  const ores = me().ores
-    .filter((o) => !S.hiddenOres.has(o.id) && o.word[0] === ch)
-    .sort((a, b) => (b.diamond ? 2 : b.golden ? 1 : 0) - (a.diamond ? 2 : a.golden ? 1 : 0));
-  const o = ores[0];
-  return o && { kind: 'ore', id: o.id, wi: 0, typed: 0, word: o.word };
-}
-
 function typeChar(ch) {
   const lesson = S.snap?.tutorial;
   if (lesson && !['mine', 'defend'].includes(lesson.id)) return;
-  if (!S.lock) {
-    const target = findTarget(ch);
-    if (!target) return miss();
-    S.lock = target;
-  } else if (S.lock.word[S.lock.typed] !== ch) {
-    return miss();
+  const result = S.typing.type(ch, ++S.seq);
+  refreshView();
+  if (result.action) send(result.action);
+  if (result.feedback === 'miss') {
+    sfx.miss();
+    renderer.miss();
+    flashMiss();
+    return;
   }
-
-  const lock = S.lock;
-  lock.typed++;
+  const lock = result.lock;
+  if (!lock) return;
   sfx.key(lock.typed);
-
   if (lock.kind === 'mob') renderer.bolt(S.you, lock.id);
-
-  if (lock.typed < lock.word.length) {
-    if (lock.kind === 'mob') send({ t: 'progress', id: lock.id, wi: lock.wi, typed: lock.typed });
-    return;
-  }
-
-  // Word complete
-  if (lock.kind === 'ore') {
-    send({ t: 'gather', id: lock.id });
-    S.hiddenOres.add(lock.id);
-    dropLock();
-    return;
-  }
-
-  send({ t: 'hit', id: lock.id, wi: lock.wi });
-  const mob = S.snap.mobs.find((m) => m.id === lock.id);
   const pos = renderer.mobPos.get(lock.id);
-  if (mob && lock.wi + 1 < mob.words.length) {
+  if (result.feedback === 'armor') {
     sfx.armor();
     if (pos) renderer.burst(pos.x, pos.y, '#c8cfdb', 10, 120);
-    S.lock = { kind: 'mob', id: mob.id, wi: lock.wi + 1, typed: 0, word: mob.words[lock.wi + 1] };
-  } else {
+  } else if (result.feedback === 'kill') {
     sfx.kill();
     if (pos) renderer.killFx(pos.x, pos.y);
-    S.killed.set(lock.id, performance.now());
-    dropLock();
   }
-}
-
-function miss() {
-  send({ t: 'miss' });
-  sfx.miss();
-  if (S.snap) me().combo = 0;
-  renderer.miss();
-  flashMiss();
 }
 
 function setMode(mode) {
   const lesson = S.snap?.tutorial;
   if (lesson && !((lesson.id === 'switch' && mode === 'fight')
     || (lesson.id === 'upgrade' && mode === 'gather'))) return;
-  if (mode === S.mode) return;
-  S.mode = mode;
-  S.modeAt = performance.now();
-  dropLock();
-  send({ t: 'mode', mode });
+  const action = S.typing.setMode(mode, ++S.seq);
+  if (!action) return;
+  refreshView();
+  send(action);
   sfx.switch();
 }
 
@@ -366,6 +312,7 @@ function buy(id) {
   flashShop(id, ok);
   if (!ok) return sfx.denied();
   S.seq = seq;
+  refreshView();
   send({ t: 'buy', item: id, seq });
 }
 
@@ -390,7 +337,7 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') {
     e.preventDefault();
     if (S.snap?.tutorial && S.snap.tutorial.id !== 'lightning') return;
-    if ((me()?.ult ?? 0) >= ULT_MAX) send({ t: 'ult' });
+    if ((me()?.ult ?? 0) >= ULT_MAX) send({ t: 'ult', seq: ++S.seq });
     else sfx.denied();
     return;
   }
@@ -419,7 +366,6 @@ function frame(now) {
   if (S.snap) {
     const since = S.playing ? (now - S.snapAt) / 1000 : 0;
     for (const m of S.snap.mobs) {
-      if (S.killed.has(m.id)) continue;
       const predicted = Math.max(0, Math.min(LANE_LENGTH, m.x + m.vx * since));
       const prev = S.display.get(m.id);
       const dx = prev == null ? predicted : prev + (predicted - prev) * Math.min(1, dt * 12);
@@ -430,12 +376,12 @@ function frame(now) {
   }
 
   if (S.snap && $('#game').classList.contains('active')) {
-    updateHud({ snap: S.snap, you: S.you, mode: S.mode, lock: S.lock, hiddenOres: S.hiddenOres, danger });
+    updateHud({ snap: S.snap, you: S.you, mode: S.mode, lock: S.lock, danger });
   }
   const combo = S.snap ? `×${comboMultiplier(me().combo).toFixed(1)}` : null;
   renderer.draw({ snap: S.snap, mobs, lock: S.lock, mode: S.mode, combo, now }, dt);
   if (S.snap?.tutorial && $('#game').classList.contains('active')) {
-    tutorial.update({ lesson: S.snap.tutorial, player: me(), mode: S.mode, lock: S.lock, hiddenOres: S.hiddenOres, renderer });
+    tutorial.update({ lesson: S.snap.tutorial, player: me(), mode: S.mode, lock: S.lock, renderer });
     if (S.snap.tutorial.id === 'done') S.playing = false;
   } else tutorial.hide();
   requestAnimationFrame(frame);
@@ -488,7 +434,7 @@ function leaveRoom() {
   S.playing = false;
   S.you = null;
   S.snap = null;
-  S.lock = null;
+  resetPrediction();
   tutorial.hide();
   if (S.ws) {
     const ws = S.ws;

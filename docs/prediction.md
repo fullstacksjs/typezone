@@ -7,3 +7,11 @@
 Room snapshots add `processed: {p1, p2}` and `winner`. Sequenced actions at or below the watermark are ignored; legacy actions without sequences remain supported. Watermarks reset on match start. All clients and the server must be deployed together for reliable prediction correction.
 
 The module's depth hides purchase knowledge behind a small interface. This gives locality to rule changes and leverage to the match, bot, input handler and tiles. No adapter abstraction is needed for these in-process rules.
+
+# Typing view
+
+`TypingState.receive(snapshot)` reconciles pending completions using the same processed watermark. `type(character, sequence)` returns an optional wire action and local feedback, while `setMode` predicts a mode until processing is confirmed. `drop` releases only the current lock. Construct a new state on countdown, match start, end, disconnect or exit.
+
+The `view` interface supplies a coherent snapshot, mode and lock. Pending ores and defeated mobs are absent, and armored mobs expose their predicted word index. HUD, canvas and tutorial consume that view without interpreting pending ID collections. Earlier frames retain predictions. A processed rejection restores the authoritative target. Lightning, removed targets and corrected modes invalidate incompatible locks. Geometry, interpolation, sound and particles stay outside the module. Confirmed kill events carry a local `predicted` marker to avoid repeating the responsive burst.
+
+The module includes target priority, pending actions and reconciliation behind one interface. That depth gives callers leverage without exposing a second representation of hidden targets. Game and Tutorial remain adapters at Room's existing match seam.
