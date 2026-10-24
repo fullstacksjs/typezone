@@ -1,3 +1,4 @@
+import { tutorialPolicy } from './tutorial-policy.js';
 import { BASE_HP, MOBS, SPELLS } from './config.js';
 
 export function itemCost(item, player) {
@@ -10,7 +11,7 @@ export function itemCost(item, player) {
 /** Works with authoritative players and snapshot players. */
 export function purchase(player, item, { ended = false, suddenDeath = false, tutorial = null } = {}) {
   const cost = itemCost(item, player);
-  const permitted = !tutorial || (tutorial.item === item && (tutorial.id !== 'upgrade' || player.mode === 'gather'));
+  const permitted = tutorialPolicy(tutorial, player.mode).allows({ t: 'buy', item });
   const available = cost != null && !ended && permitted && player.gold >= cost
     && (!MOBS[item] || player.charges[item]?.n > 0)
     && !(item === 'frost' && player.frostCd > 0)

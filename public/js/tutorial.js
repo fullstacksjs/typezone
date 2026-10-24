@@ -1,3 +1,4 @@
+import { tutorialPolicy } from '../../shared/tutorial-policy.js';
 const $ = (selector) => document.querySelector(selector);
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 
@@ -16,16 +17,16 @@ export class TutorialOverlay {
   }
 
   update({ lesson, player, mode, lock, renderer }) {
-    const done = lesson.id === 'done';
-    const gatherFirst = lesson.id === 'upgrade' && mode !== 'gather';
+    const { complete: done, guidance } = tutorialPolicy(lesson, mode);
+    if (!guidance) return this.hide();
     let rect;
     let word;
-    if (lesson.id === 'mine') {
+    if (guidance.anchor === 'ore') {
       const ore = player.ores.find((ore) => ore.id === lock?.id)
         ?? player.ores[0];
       rect = ore && $(`#ores .ore[data-id="${ore.id}"]`)?.getBoundingClientRect();
       word = ore?.word;
-    } else if (lesson.id === 'defend') {
+    } else if (guidance.anchor === 'enemy') {
       const anchor = renderer.tutorialAnchor;
       if (anchor) {
         const canvas = renderer.canvas.getBoundingClientRect();
@@ -37,25 +38,25 @@ export class TutorialOverlay {
         word = anchor.word;
       }
     } else if (!done) {
-      const target = gatherFirst ? $('#mode-key') : lesson.item
-        ? $(`.tile[data-id="${lesson.item}"]`) : $(`#${lesson.focus}`);
+      const target = guidance.item
+        ? $(`.tile[data-id="${guidance.item}"]`) : $(`#${guidance.focus}`);
       rect = target?.getBoundingClientRect();
     }
     if (!rect && !done) return this.hide();
 
-    const signature = JSON.stringify([lesson.id, lesson.mined, gatherFirst, word]);
+    const signature = JSON.stringify([lesson.id, lesson.mined, guidance.focus, word]);
     if (signature !== this.signature) {
       this.signature = signature;
       $('#tutorial-progress').textContent = done ? 'Tutorial complete'
-        : `${lesson.step} / ${lesson.total}${lesson.id === 'mine' ? ` · ${lesson.mined}/2 words` : ''}`;
-      $('#tutorial-title').textContent = gatherFirst ? 'Back to Gather' : lesson.title;
-      $('#tutorial-verb').textContent = word ? 'Type' : lesson.item && !gatherFirst ? 'Click or press' : 'Press';
-      $('#tutorial-key').textContent = word ?? (gatherFirst ? 'Tab' : lesson.key ?? '');
+        : `${lesson.step} / ${lesson.total}${guidance.anchor === 'ore' ? ` · ${lesson.mined}/2 words` : ''}`;
+      $('#tutorial-title').textContent = guidance.title;
+      $('#tutorial-verb').textContent = guidance.verb;
+      $('#tutorial-key').textContent = word ?? guidance.key ?? '';
       $('#tutorial-instruction').classList.toggle('hidden', done);
       $('#tutorial-complete').classList.toggle('hidden', !done);
     }
     if (!this.root.matches(':popover-open')) this.root.showPopover();
-    this.position(rect, lesson.id === 'defend');
+    this.position(rect, guidance.anchor === 'enemy');
   }
 
   position(rect, belowEnemy = false) {

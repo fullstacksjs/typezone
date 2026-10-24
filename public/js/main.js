@@ -1,3 +1,4 @@
+import { tutorialPolicy } from '../../shared/tutorial-policy.js';
 import { TypingState } from './typing-state.js?v=20261024-rules';
 import { ShopPrediction } from './shop-state.js?v=20261024-rules';
 import { BASE_HP, LANE_LENGTH, MOBS, SPELLS, ULT_MAX, comboMultiplier } from '/shared/config.js?v=20261024-wizard';
@@ -268,9 +269,7 @@ function handleEvent(e) {
 
 // ------------------------------------------------------------ typing
 function typeChar(ch) {
-  if (!S.snap) return;
-  const lesson = S.snap?.tutorial;
-  if (lesson && !['mine', 'defend'].includes(lesson.id)) return;
+  if (!S.snap || !tutorialPolicy(S.snap.tutorial, S.mode).allows({ t: 'type' })) return;
   const result = S.typing.type(ch, ++S.seq);
   refreshView();
   if (result.action) send(result.action);
@@ -295,9 +294,7 @@ function typeChar(ch) {
 }
 
 function setMode(mode) {
-  const lesson = S.snap?.tutorial;
-  if (lesson && !((lesson.id === 'switch' && mode === 'fight')
-    || (lesson.id === 'upgrade' && mode === 'gather'))) return;
+  if (!tutorialPolicy(S.snap?.tutorial, S.mode).allows({ t: 'mode', mode })) return;
   const action = S.typing.setMode(mode, ++S.seq);
   if (!action) return;
   refreshView();
@@ -337,7 +334,7 @@ document.addEventListener('keydown', (e) => {
   }
   if (e.key === 'Enter') {
     e.preventDefault();
-    if (S.snap?.tutorial && S.snap.tutorial.id !== 'lightning') return;
+    if (!tutorialPolicy(S.snap?.tutorial, S.mode).allows({ t: 'ult' })) return;
     if ((me()?.ult ?? 0) >= ULT_MAX) send({ t: 'ult', seq: ++S.seq });
     else sfx.denied();
     return;
@@ -383,7 +380,7 @@ function frame(now) {
   renderer.draw({ snap: S.snap, mobs, lock: S.lock, mode: S.mode, combo, now }, dt);
   if (S.snap?.tutorial && $('#game').classList.contains('active')) {
     tutorial.update({ lesson: S.snap.tutorial, player: me(), mode: S.mode, lock: S.lock, renderer });
-    if (S.snap.tutorial.id === 'done') S.playing = false;
+    if (tutorialPolicy(S.snap.tutorial, S.mode).complete) S.playing = false;
   } else tutorial.hide();
   requestAnimationFrame(frame);
 }
