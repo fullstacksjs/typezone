@@ -1,10 +1,11 @@
+import { ShopPrediction } from './shop-state.js?v=20261024-rules';
 import { BASE_HP, LANE_LENGTH, MOBS, SPELLS, ULT_MAX, comboMultiplier } from '/shared/config.js?v=20261024-wizard';
 import { Renderer } from './render.js?v=20261024-wizard';
 import { TutorialOverlay } from './tutorial.js?v=20261024-wizard';
 import { sfx, unlockAudio, toggleMute, isMuted } from './audio.js?v=20261024-wizard';
 import { icon } from './icons.js?v=20261024-wizard';
 import {
-  $, SHOP_ITEMS, itemCost, showScreen, buildShop, buildMiners, flashShop, showAlert, flashMiss, updateHud, resetHud,
+  $, SHOP_ITEMS, showScreen, buildShop, buildMiners, flashShop, showAlert, flashMiss, updateHud, resetHud,
   floatGold, showEnd,
 } from './ui.js?v=20261024-wizard';
 
@@ -17,6 +18,8 @@ const S = {
   playing: false,
   snap: null,
   snapAt: 0,
+  seq: 0,
+  shop: null,
   mode: 'gather',
   lock: null, // { kind: 'mob'|'ore', id, wi, typed, word }
   killed: new Map(), // mobId -> time we killed it locally (hide until server agrees)
@@ -137,6 +140,8 @@ function startMatch(tutorial = false) {
   $('#countdown').classList.add('hidden');
   $('#end').classList.add('hidden');
   S.playing = true;
+  S.seq = 0;
+  S.shop = new ShopPrediction(S.you);
   S.snap = null;
   S.mode = 'gather';
   S.lock = null;
@@ -151,7 +156,8 @@ function startMatch(tutorial = false) {
 
 // ------------------------------------------------------------ snapshots
 function onSnapshot(snap) {
-  S.snap = snap;
+  S.shop.receive(snap);
+  S.snap = { ...snap, players: { ...snap.players, [S.you]: S.shop.player } };
   S.snapAt = performance.now();
 
   const ids = new Set(snap.mobs.map((m) => m.id));
@@ -355,19 +361,12 @@ function setMode(mode) {
 function buy(id) {
   const p = me();
   if (!S.playing || !p) return;
-  const lesson = S.snap?.tutorial;
-  if (lesson && (lesson.item !== id || (lesson.id === 'upgrade' && S.mode !== 'gather'))) return;
-  const cost = itemCost(id, p);
-  const ok = cost != null && p.gold >= cost && p.charges[id]?.n !== 0
-    && !(id === 'frost' && p.frostCd > 0)
-    && !(id === 'repair' && (p.repairCd > 0 || p.hp >= BASE_HP || S.snap.suddenDeath));
+  const seq = S.seq + 1;
+  const ok = S.shop.buy(id, seq, S.mode);
   flashShop(id, ok);
   if (!ok) return sfx.denied();
-  p.gold -= cost; // optimistic; the next snapshot corrects it
-  if (p.charges[id]) p.charges[id].n--;
-  if (id === 'frost') p.frostCd = SPELLS.frost.cooldown;
-  if (id === 'repair') p.repairCd = SPELLS.repair.cooldown;
-  send({ t: 'buy', item: id });
+  S.seq = seq;
+  send({ t: 'buy', item: id, seq });
 }
 
 const KEY_TO_ITEM = Object.fromEntries(SHOP_ITEMS.map((it) => [it.key, it.id]));

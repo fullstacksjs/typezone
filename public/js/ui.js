@@ -1,3 +1,5 @@
+import { itemCost, purchase } from '../../shared/shop.js';
+export { itemCost };
 import {
   BASE_HP, MOBS, SPELLS, ULT_MAX, GOLD_PER_CHAR, GOLDEN_MULT, GOLDEN_TTL, DIAMOND_MULT, DIAMOND_TTL, comboMultiplier,
 } from '/shared/config.js?v=20261024-wizard';
@@ -18,12 +20,6 @@ export const SHOP_ITEMS = SHOP_GROUPS.flatMap((g) => g.items).map((id) => {
   const def = MOBS[id] ?? SPELLS[id];
   return { id, key: def.key, name: def.name, desc: def.desc };
 });
-
-export function itemCost(id, player) {
-  if (MOBS[id]) return MOBS[id].cost;
-  if (SPELLS[id].costs) return SPELLS[id].costs[player?.[id] ?? 0] ?? null;
-  return SPELLS[id].cost;
-}
 
 export function showScreen(id) {
   for (const el of document.querySelectorAll('.screen')) el.classList.toggle('active', el.id === id);
@@ -172,10 +168,7 @@ function updateTile(el, me, snap) {
     cd = Math.ceil(id === 'frost' ? me.frostCd : id === 'repair' ? me.repairCd : 0);
   }
   const afford = cost != null && me.gold >= cost;
-  const blocked = id === 'repair' && (snap.suddenDeath || me.hp >= BASE_HP);
-  const lesson = snap.tutorial;
-  const allowed = !lesson || (lesson.item === id && (lesson.id !== 'upgrade' || me.mode === 'gather'));
-  const usable = afford && cd === 0 && !blocked && allowed;
+  const usable = purchase(me, id, { ended: !!snap.winner, suddenDeath: snap.suddenDeath, tutorial: snap.tutorial }).available;
   el.disabled = !usable;
 
   const sig = `${fills.join(',')}|${cost}|${afford}|${cd}|${usable}`;
