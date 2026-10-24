@@ -1,12 +1,11 @@
 import { itemCost, purchase, offerOf, PICKAXE } from '../../shared/shop.js';
 import { itemUse } from '../../shared/items.js';
-export { itemCost };
 import {
   BASE_HP, MOBS, SPELLS, ITEMS, ITEM_SLOTS, ITEM_KEY, ULT_MAX, GOLD_PER_CHAR, GOLDEN_MULT, GOLDEN_TTL, DIAMOND_MULT, DIAMOND_TTL, comboMultiplier,
-} from '/shared/config.js?v=20261024-airdrop';
-import { icon, gem, tileArt } from './icons.js?v=20261024-wizard';
-import { nugget, orePalette } from './nugget.js?v=20261024-wizard';
-import { minerSvg } from './pixel.js?v=20261024-wizard';
+} from '../../shared/config.js';
+import { icon, gem, tileArt } from './icons.js';
+import { nugget, orePalette } from './nugget.js';
+import { minerSvg } from './pixel.js';
 
 export const $ = (sel) => document.querySelector(sel);
 

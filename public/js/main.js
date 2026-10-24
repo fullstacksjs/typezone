@@ -1,71 +1,51 @@
-import { tutorialPolicy } from '../../shared/tutorial-policy.js';
+import { LANE_LENGTH, ITEM_KEY, comboMultiplier } from '../../shared/config.js';
 import { canClaim } from '../../shared/items.js';
-import { TypingState } from './typing-state.js?v=20261024-airdrop';
-import { ShopPrediction } from './shop-state.js?v=20261024-airdrop';
+import { MatchSession } from './session.js';
+import { MatchFeedback } from './feedback.js';
+import { Connection } from './connection.js';
+import { Renderer } from './render.js';
+import { TutorialOverlay } from './tutorial.js';
+import { sfx, unlockAudio, toggleMute, isMuted } from './audio.js';
+import { icon } from './icons.js';
 import {
-  LANE_LENGTH, MOBS, SPELLS, ITEMS, ITEM_KEY, ULT_MAX, comboMultiplier,
-} from '/shared/config.js?v=20261024-airdrop';
-import { Renderer } from './render.js?v=20261024-airdrop';
-import { TutorialOverlay } from './tutorial.js?v=20261024-wizard';
-import { sfx, unlockAudio, toggleMute, isMuted } from './audio.js?v=20261024-airdrop';
-import { icon } from './icons.js?v=20261024-airdrop';
-import {
-  $, SHOP_ITEMS, showScreen, buildShop, buildMiners, flashShop, showAlert, flashMiss, updateHud, resetHud,
-  floatGold, showEnd,
-} from './ui.js?v=20261024-airdrop';
+  $, SHOP_ITEMS, showScreen, buildShop, buildMiners, flashShop, showAlert, flashMiss, updateHud, resetHud, showEnd,
+} from './ui.js';
 
 // ------------------------------------------------------------ state
 const S = {
-  ws: null,
   you: null,
   code: null,
   names: { p1: 'Player 1', p2: 'Player 2' },
   playing: false,
-  snap: null,
+  session: new MatchSession(null), // prediction and the frame we draw
+  lastFrame: null, // latest authoritative snapshot
   snapAt: 0,
-  seq: 0,
-  shop: null,
-  mode: 'gather',
-  lock: null, // { kind: 'mob'|'ore', id, wi, typed, word }
-  typing: null,
   display: new Map(), // mobId -> displayed x
-  oppTyped: new Map(), // mobId -> last seen opponent progress on our mobs
-  oppDropTyped: 0, // last seen opponent progress on the airdrop
 };
 
 const opp = () => (S.you === 'p1' ? 'p2' : 'p1');
-const me = () => S.snap?.players[S.you];
+const me = () => S.session.me;
 
 const renderer = new Renderer($('#field'));
 const tutorial = new TutorialOverlay();
+const feedback = new MatchFeedback(renderer);
+const conn = new Connection({ onMessage, onDrop });
 
-// ------------------------------------------------------------ network
-function connect() {
-  return new Promise((resolve, reject) => {
-    if (S.ws && S.ws.readyState === WebSocket.OPEN) return resolve(S.ws);
-    const ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}`);
-    ws.onopen = () => resolve(ws);
-    ws.onerror = () => reject(new Error('Could not reach the server.'));
-    ws.onmessage = (ev) => { if (S.ws === ws) onMessage(JSON.parse(ev.data)); };
-    ws.onclose = () => {
-      if (S.ws !== ws) return;
-      S.ws = null;
-      if (S.you) {
-        resetPrediction();
-        S.playing = false;
-        S.you = null;
-        S.snap = null;
-        tutorial.hide();
-        showScreen('lobby');
-        $('#lobby-error').textContent = 'Disconnected from server.';
-      }
-    };
-    S.ws = ws;
-  });
+/** Discards prediction. `frame` keeps an authoritative battlefield on screen. */
+function newSession(frame = null) {
+  S.session = new MatchSession(S.you);
+  if (frame) S.session.receive(frame);
 }
 
-function send(msg) {
-  if (S.ws?.readyState === WebSocket.OPEN) S.ws.send(JSON.stringify(msg));
+// ------------------------------------------------------------ network
+function onDrop() {
+  if (!S.you) return;
+  S.playing = false;
+  S.you = null;
+  newSession();
+  tutorial.hide();
+  showScreen('lobby');
+  $('#lobby-error').textContent = 'Disconnected from server.';
 }
 
 function onMessage(msg) {
@@ -89,8 +69,7 @@ function onMessage(msg) {
       }
       break;
     case 'countdown':
-      resetPrediction();
-      S.snap = null;
+      newSession();
       resetHud();
       enterGameScreen();
       $('#end').classList.add('hidden');
@@ -110,7 +89,7 @@ function onMessage(msg) {
       break;
     case 'end':
       S.playing = false;
-      resetPrediction();
+      newSession(S.lastFrame);
       showEnd(msg, S.you, S.names);
       if (msg.winner === S.you) sfx.win();
       else sfx.lose();
@@ -148,161 +127,29 @@ function startMatch(tutorial = false) {
   $('#countdown').classList.add('hidden');
   $('#end').classList.add('hidden');
   S.playing = true;
-  resetPrediction();
-  S.snap = null;
-  S.mode = 'gather';
-  S.lock = null;
+  S.lastFrame = null;
+  newSession();
   S.display.clear();
-  S.oppTyped.clear();
-  S.oppDropTyped = 0;
+  feedback.reset(S.you, S.names);
   resetHud();
   sfx.count(true);
   if (!tutorial) showAlert('FIGHT! Mine gold and send your army', 'mine', 1600, 1, 'sword');
 }
 
-// ------------------------------------------------------------ snapshots
-function resetPrediction() {
-  S.seq = 0;
-  S.shop = new ShopPrediction(S.you);
-  S.typing = new TypingState(S.you);
-  S.lock = null;
-  S.mode = 'gather';
-}
-
-function refreshView() {
-  const view = S.typing.view;
-  const typedPlayer = view.snap.players[S.you];
-  S.snap = { ...view.snap, players: { ...view.snap.players, [S.you]: {
-    ...S.shop.player, ores: typedPlayer.ores, mode: view.mode, combo: typedPlayer.combo,
-  } } };
-  S.mode = view.mode;
-  S.lock = view.lock;
-}
-
 function onSnapshot(snap) {
-  S.shop.receive(snap);
-  S.typing.receive(snap);
-  refreshView();
+  S.lastFrame = snap;
+  const view = S.session.receive(snap);
   S.snapAt = performance.now();
   const ids = new Set(snap.mobs.map((m) => m.id));
   for (const id of S.display.keys()) if (!ids.has(id)) S.display.delete(id);
-
-  // Opponent chipping away at our mobs: fire their bolts.
-  for (const m of snap.mobs) {
-    if (m.owner !== S.you) continue;
-    const prev = S.oppTyped.get(m.id) ?? 0;
-    if (m.typed > prev) renderer.bolt(opp(), m.id);
-    S.oppTyped.set(m.id, m.typed);
-  }
-  for (const id of S.oppTyped.keys()) if (!ids.has(id)) S.oppTyped.delete(id);
-  const rival = snap.airdrop?.typed[opp()] ?? 0;
-  if (rival > S.oppDropTyped) renderer.bolt(opp(), snap.airdrop.id);
-  S.oppDropTyped = rival;
-
-  for (const e of S.snap.events) handleEvent(e);
+  feedback.receive(view.snap, view.mode);
 }
 
-function dropLock() {
-  S.typing?.drop();
-  S.lock = null;
-}
-
-function handleEvent(e) {
-  const mine = e.slot === S.you;
-  switch (e.e) {
-    case 'gather':
-      if (mine) {
-        floatGold(`+${e.gold}◆`, e.golden || e.diamond);
-        sfx.coin(e.golden, e.diamond);
-      }
-      break;
-    case 'kill': {
-      // The killer's target was coming at them: our kills land on the defend road, theirs on the attack road.
-      const color = mine ? '#2F6FE0' : '#E8681C';
-      if (!e.predicted) renderer.burstAtWorld(e.x, mine, color, 16);
-      if (e.type === 'slime') renderer.burstAtWorld(e.x, mine, '#8EE07A', 24, 220);
-      if (mine) renderer.killAtWorld(e.x, mine, `+${e.bounty}◆`);
-      if (!mine) sfx.enemyHit();
-      break;
-    }
-    case 'armor':
-      if (!mine) sfx.enemyHit();
-      break;
-    case 'send':
-      if (mine) sfx.send();
-      else showAlert(`${S.names[opp()]} sent a ${MOBS[e.type].name}!`, 'info', 1400, 1, e.type);
-      break;
-    case 'baseHit':
-      if (mine) {
-        renderer.shake(14);
-        renderer.flashBase(S.you);
-        renderer.floatAtBase('me', `−${e.dmg}`, '#C2183A', 40);
-        sfx.baseHit();
-      } else {
-        renderer.shake(4);
-        renderer.flashBase(opp());
-        renderer.floatAtBase('opp', `−${e.dmg}`, '#C2183A', 40);
-        sfx.enemyHit();
-      }
-      break;
-    case 'spell': {
-      sfx.spell();
-      const name = SPELLS[e.spell].name;
-      if (e.spell === 'fog' && !mine) showAlert('You have been FOGGED!', 'danger', 1600, 3, 'fog');
-      else if (e.spell === 'frost') {
-        showAlert(mine ? 'Frost slows the invaders' : `${S.names[opp()]} froze their side`, mine ? 'mine' : 'info', 1400, 2, 'frost');
-      } else if (!mine) {
-        showAlert(`${S.names[opp()]} cast ${name}`, 'info', 1200, 1, e.spell);
-      }
-      break;
-    }
-    case 'airdrop':
-      sfx.airdrop();
-      showAlert(S.mode === 'fight' ? 'AIRDROP incoming! Type its word to claim it' : 'AIRDROP incoming! Switch to Fight to claim it',
-        'mine', 2200, 2, 'crate', S.mode === 'fight' ? '' : 'Tab');
-      break;
-    case 'claim':
-      if (mine) {
-        // Only the winner learns what was inside.
-        const def = ITEMS[e.item.type];
-        sfx.claim();
-        showAlert(`You got ${def.name}!`, 'mine', 2000, 2, e.item.type, `${def.desc} · press ${ITEM_KEY}`);
-      } else {
-        showAlert(`${S.names[opp()]} grabbed the airdrop`, 'info', 1600, 2, 'crate');
-      }
-      break;
-    case 'airdropLost':
-      showAlert('The airdrop was lost', 'info', 1200, 1, 'crate');
-      break;
-    case 'item':
-      if (e.type === 'heal') {
-        sfx.spell();
-        renderer.healBase(e.slot);
-        renderer.floatAtBase(mine ? 'me' : 'opp', `+${ITEMS.heal.amount}`, '#5BB33A', 34);
-        if (!mine) showAlert(`${S.names[opp()]} used ${ITEMS.heal.name}`, 'info', 1200, 1, 'heal');
-      }
-      break;
-    case 'ult':
-      renderer.lightning(e.targets, mine);
-      sfx.ult();
-      if (!mine) showAlert(`${S.names[opp()]} called down LIGHTNING!`, 'info', 1500, 2, 'bolt');
-      break;
-    case 'overtime':
-      showAlert('OVERTIME! Mobs keep speeding up, income doubled', 'danger', 3000, 4, 'flame');
-      break;
-    case 'suddenDeath':
-      showAlert('SUDDEN DEATH! Both bases crumble, no healing', 'danger', 3500, 5, 'skull');
-      break;
-    default:
-  }
-}
-
-// ------------------------------------------------------------ typing
+// ------------------------------------------------------------ input
 function typeChar(ch) {
-  if (!S.snap || !tutorialPolicy(S.snap.tutorial, S.mode).allows({ t: 'type' })) return;
-  const result = S.typing.type(ch, ++S.seq);
-  refreshView();
-  if (result.action) send(result.action);
+  const result = S.session.type(ch);
+  if (!result) return;
+  if (result.action) conn.send(result.action);
   if (result.feedback === 'miss') {
     sfx.miss();
     renderer.miss();
@@ -314,50 +161,43 @@ function typeChar(ch) {
   sfx.key(lock.typed);
   if (lock.kind !== 'ore') renderer.bolt(S.you, lock.id);
   const pos = renderer.mobPos.get(lock.id);
-  if (result.feedback === 'claim') {
+  if (result.feedback === 'claim' || result.feedback === 'kill') {
     sfx.kill();
     if (pos) renderer.killFx(pos.x, pos.y);
   } else if (result.feedback === 'armor') {
     sfx.armor();
     if (pos) renderer.burst(pos.x, pos.y, '#c8cfdb', 10, 120);
-  } else if (result.feedback === 'kill') {
-    sfx.kill();
-    if (pos) renderer.killFx(pos.x, pos.y);
   }
 }
 
 function setMode(mode) {
-  if (!tutorialPolicy(S.snap?.tutorial, S.mode).allows({ t: 'mode', mode })) return;
-  const action = S.typing.setMode(mode, ++S.seq);
+  const action = S.session.setMode(mode);
   if (!action) return;
-  refreshView();
-  send(action);
+  conn.send(action);
   sfx.switch();
 }
 
 function buy(id) {
-  const p = me();
-  if (!S.playing || !p) return;
-  const seq = S.seq + 1;
-  const ok = S.shop.buy(id, seq, S.mode);
-  flashShop(id, ok);
-  if (!ok) return sfx.denied();
-  S.seq = seq;
-  refreshView();
-  send({ t: 'buy', item: id, seq });
+  if (!S.playing || !me()) return;
+  const action = S.session.buy(id);
+  flashShop(id, !!action);
+  if (!action) return sfx.denied();
+  conn.send(action);
 }
 
-/** Use the item in a slot; the server reveals nothing new, but heals are predicted. */
+/** Use the item in a supply slot; heals are predicted. */
 function useItem(slot) {
-  const item = me()?.items[slot];
-  if (!S.playing || !item) return sfx.denied();
-  const seq = S.seq + 1;
-  const ok = S.shop.use(item.id, seq, S.mode);
-  flashShop(slot, ok);
-  if (!ok) return sfx.denied();
-  S.seq = seq;
-  refreshView();
-  send({ t: 'use', id: item.id, seq });
+  if (!S.playing || !me()?.items[slot]) return sfx.denied();
+  const action = S.session.use(slot);
+  flashShop(slot, !!action);
+  if (!action) return sfx.denied();
+  conn.send(action);
+}
+
+function ultimate() {
+  const action = S.session.ultimate();
+  if (action) conn.send(action);
+  else if (S.session.policy.allows({ t: 'ult' })) sfx.denied();
 }
 
 const KEY_TO_ITEM = Object.fromEntries(SHOP_ITEMS.map((it) => [it.key, it.id]));
@@ -370,19 +210,17 @@ document.addEventListener('keydown', (e) => {
 
   if (e.key === 'Tab') {
     e.preventDefault();
-    setMode(S.mode === 'gather' ? 'fight' : 'gather');
+    setMode(S.session.mode === 'gather' ? 'fight' : 'gather');
     return;
   }
   if (e.key === 'Escape' || e.key === 'Backspace') {
     e.preventDefault();
-    dropLock();
+    S.session.dropLock();
     return;
   }
   if (e.key === 'Enter') {
     e.preventDefault();
-    if (!tutorialPolicy(S.snap?.tutorial, S.mode).allows({ t: 'ult' })) return;
-    if ((me()?.ult ?? 0) >= ULT_MAX) send({ t: 'ult', seq: ++S.seq });
-    else sfx.denied();
+    ultimate();
     return;
   }
   if (e.key === ITEM_KEY) {
@@ -405,36 +243,39 @@ buildShop(buy, useItem);
 buildMiners();
 
 // ------------------------------------------------------------ frame loop
+/** Mobs at their interpolated display positions, and how many are close to our base. */
+function interpolateMobs(snap, now, dt) {
+  const mobs = [];
+  let danger = 0;
+  const since = S.playing ? (now - S.snapAt) / 1000 : 0;
+  for (const m of snap.mobs) {
+    const predicted = Math.max(0, Math.min(LANE_LENGTH, m.x + m.vx * since));
+    const prev = S.display.get(m.id);
+    const dx = prev == null ? predicted : prev + (predicted - prev) * Math.min(1, dt * 12);
+    S.display.set(m.id, dx);
+    mobs.push({ ...m, dx });
+    if (m.target === S.you && (S.you === 'p1' ? dx : LANE_LENGTH - dx) < LANE_LENGTH * 0.3) danger++;
+  }
+  return { mobs, danger };
+}
+
 let lastFrame = performance.now();
 function frame(now) {
   const dt = Math.min((now - lastFrame) / 1000, 0.1);
   lastFrame = now;
+  const { snap, mode, lock } = S.session;
+  const onGame = $('#game').classList.contains('active');
 
-  let mobs = [];
-  let danger = 0;
-  if (S.snap) {
-    const since = S.playing ? (now - S.snapAt) / 1000 : 0;
-    for (const m of S.snap.mobs) {
-      const predicted = Math.max(0, Math.min(LANE_LENGTH, m.x + m.vx * since));
-      const prev = S.display.get(m.id);
-      const dx = prev == null ? predicted : prev + (predicted - prev) * Math.min(1, dt * 12);
-      S.display.set(m.id, dx);
-      mobs.push({ ...m, dx });
-      if (m.target === S.you && (S.you === 'p1' ? dx : LANE_LENGTH - dx) < LANE_LENGTH * 0.3) danger++;
-    }
-  }
-
-  if (S.snap && $('#game').classList.contains('active')) {
-    updateHud({ snap: S.snap, you: S.you, mode: S.mode, lock: S.lock, danger });
-  }
-  const combo = S.snap ? `×${comboMultiplier(me().combo).toFixed(1)}` : null;
-  const drop = S.snap?.airdrop && { ...S.snap.airdrop, ttl: S.snap.airdrop.ttl - (S.playing ? (now - S.snapAt) / 1000 : 0) };
+  const { mobs, danger } = snap ? interpolateMobs(snap, now, dt) : { mobs: [], danger: 0 };
+  if (snap && onGame) updateHud({ snap, you: S.you, mode, lock, danger });
+  const combo = snap ? `×${comboMultiplier(me().combo).toFixed(1)}` : null;
+  const drop = snap?.airdrop && { ...snap.airdrop, ttl: snap.airdrop.ttl - (S.playing ? (now - S.snapAt) / 1000 : 0) };
   renderer.draw({
-    snap: S.snap, mobs, drop, canClaim: !!S.snap && canClaim(me()), lock: S.lock, mode: S.mode, combo, now,
+    snap, mobs, drop, canClaim: !!snap && canClaim(me()), lock, mode, combo, now,
   }, dt);
-  if (S.snap?.tutorial && $('#game').classList.contains('active')) {
-    tutorial.update({ lesson: S.snap.tutorial, player: me(), mode: S.mode, lock: S.lock, renderer });
-    if (tutorialPolicy(S.snap.tutorial, S.mode).complete) S.playing = false;
+  if (snap?.tutorial && onGame) {
+    tutorial.update({ lesson: snap.tutorial, player: me(), mode, lock, renderer });
+    if (S.session.policy.complete) S.playing = false;
   } else tutorial.hide();
   requestAnimationFrame(frame);
 }
@@ -453,8 +294,8 @@ async function lobbyAction(msg) {
   unlockAudio();
   $('#lobby-error').textContent = '';
   try {
-    await connect();
-    send({ ...msg, name: playerName() });
+    await conn.open();
+    conn.send({ ...msg, name: playerName() });
   } catch (err) {
     $('#lobby-error').textContent = err.message;
   }
@@ -485,14 +326,9 @@ $('#btn-tutorial-practice').addEventListener('click', () => {
 function leaveRoom() {
   S.playing = false;
   S.you = null;
-  S.snap = null;
-  resetPrediction();
+  newSession();
   tutorial.hide();
-  if (S.ws) {
-    const ws = S.ws;
-    S.ws = null;
-    ws.close();
-  }
+  conn.close();
   $('#end').classList.add('hidden');
   $('#countdown').classList.add('hidden');
   history.replaceState(null, '', '/');
@@ -502,7 +338,7 @@ function leaveRoom() {
 $('#btn-cancel').addEventListener('click', leaveRoom);
 $('#btn-leave').addEventListener('click', leaveRoom);
 $('#btn-rematch').addEventListener('click', () => {
-  send({ t: 'rematch' });
+  conn.send({ t: 'rematch' });
   $('#btn-rematch').disabled = true;
 });
 $('#btn-copy').addEventListener('click', async () => {

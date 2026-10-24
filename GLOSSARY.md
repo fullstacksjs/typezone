@@ -11,4 +11,6 @@
 - **Tutorial completion**: the `done` lesson, with frozen simulation and closed gameplay input while the final battlefield and exit choices stay visible.
 - **Offer**: a purchasable entry in `OFFERS` (mob, spell or upgrade). It owns its price, readiness, predictable player changes and authoritative match effect.
 - **Item kind**: an entry in `ITEM_KINDS` that owns an airdrop item's use conditions and effect.
+- **Command**: a gameplay wire action (`{ t, ... }`) with a row in `COMMANDS`. `Game.apply` and `Tutorial.apply` run commands; Room dispatches every in-match message through them.
+- **Match session**: the browser's per-match prediction state (`MatchSession`): sequence, purchase prediction, typing view and the merged frame it draws.
 - **System**: a match component that owns one mechanic (clock, mine, battlefield, airdrop supply). `Game` composes them and injects shared ids and the event log.

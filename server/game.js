@@ -8,6 +8,7 @@ import { Player } from './match/player.js';
 import { Mine } from './match/mine.js';
 import { Battlefield } from './match/battlefield.js';
 import { AirdropSupply } from './match/airdrops.js';
+import { runCommand } from './match/commands.js';
 
 const SLOTS = ['p1', 'p2'];
 const other = (slot) => (slot === 'p1' ? 'p2' : 'p1');
@@ -74,6 +75,10 @@ export class Game {
   opponentOf(slot) { return this.players[other(slot)]; }
 
   emit(e) { this.log.emit(e); }
+
+  // ---------------------------------------------------------------- commands
+  /** Runs a wire action (`{ t, ... }`) through the command table. */
+  apply(slot, action) { return runCommand(this, slot, action); }
 
   // ---------------------------------------------------------------- gather
   addOre(slot, allowRare = true) { this.mine.add(this.players[slot], allowRare); }

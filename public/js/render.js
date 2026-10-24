@@ -1,5 +1,5 @@
-import { LANE_LENGTH, BASE_HP, AIRDROP } from '/shared/config.js?v=20261024-airdrop';
-import { WIZARD_ART, WIZARD_ORB } from './pixel.js?v=20261024-wizard';
+import { LANE_LENGTH, BASE_HP, AIRDROP } from '../../shared/config.js';
+import { WIZARD_ART, WIZARD_ORB } from './pixel.js';
 
 const C = {
   ink: '#2B2118',
