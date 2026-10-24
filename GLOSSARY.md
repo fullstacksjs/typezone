@@ -9,3 +9,6 @@
 - **Claim**: the first completed airdrop word. Later claims for the same crate are rejected.
 - **Item**: a held airdrop reward, revealed only to its owner. Snapshots are redacted per seat, so the opponent's items have no type.
 - **Tutorial completion**: the `done` lesson, with frozen simulation and closed gameplay input while the final battlefield and exit choices stay visible.
+- **Offer**: a purchasable entry in `OFFERS` (mob, spell or upgrade). It owns its price, readiness, predictable player changes and authoritative match effect.
+- **Item kind**: an entry in `ITEM_KINDS` that owns an airdrop item's use conditions and effect.
+- **System**: a match component that owns one mechanic (clock, mine, battlefield, airdrop supply). `Game` composes them and injects shared ids and the event log.

@@ -51,9 +51,11 @@ New players can choose **Learn by playing** for a guided tutorial on the real ba
 
 ## Layout
 
-- `server/game.js`: authoritative match simulation (economy, mobs, spells, win conditions)
+- `server/game.js`: authoritative match simulation; composes the systems below and validates commands
+- `server/match/`: one system per mechanic: `Player` state, `MatchClock` phases, `Mine` (ores), `Battlefield` (mobs), `AirdropSupply` (crates)
+- `server/tutorial.js`: decorates a `Game` built with tutorial collaborators (frozen clock, no crates, enemy hold line)
 - `server/bot.js`: simulated typist for practice mode
 - `server/room.js`: lobby, countdown, 20 Hz tick loop, rematch, forfeits
 - `server/index.js`: static file server + WebSocket entry point
-- `shared/`: tuning constants and the word list, used by both server and client
+- `shared/`: tuning constants, the word list and the offer/item catalogs, used by both server and client
 - `public/`: browser client (canvas battlefield, DOM HUD, WebAudio sfx); no build step

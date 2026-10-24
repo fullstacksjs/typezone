@@ -7,3 +7,5 @@ The module includes lesson meaning and permissions. Its depth removes repeated l
 Completion means the `done` lesson. Simulation stops, gameplay permissions close, and the browser retains the final battlefield with easy-practice and lobby choices. Room remains playing and broadcasts at the existing 20 Hz cadence. There is no win/loss event. The tutorial snapshot retains its existing fields and adds the anchor description from the shared lesson definition.
 
 Countdown, match start, end, disconnect and room exit discard client prediction. Socket callbacks ignore replaced connections. Leaving cancels server countdown and match timers when the last human exits. Easy practice uses a fresh room, match-local sequence and unrestricted Game instance.
+
+`Tutorial` composes rather than inherits. It wraps a `Game` built with a `FrozenClock`, no crates (`firstDrop: Infinity`) and a `halted` rule that holds enemies at the safety line. Each command passes the lesson policy and runs on the real match. The lesson then advances from the command's result (`gather`/`buy`/`setMode`/`ultimate` return accepted, `hitMob` returns `'kill'`), not from Game's internal statistics.
