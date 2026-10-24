@@ -13,6 +13,7 @@ export class ShopPrediction {
   rebuild() {
     this.player = structuredClone(this.snapshot.players[this.you]);
     for (const action of this.pending) {
+      this.player.mode = action.mode;
       if (purchase(this.player, action.item, this.context).available) applyPurchase(this.player, action.item);
     }
   }
@@ -25,7 +26,7 @@ export class ShopPrediction {
     this.player.mode = mode;
     if (!purchase(this.player, item, this.context).available) return false;
     applyPurchase(this.player, item);
-    this.pending.push({ item, seq });
+    this.pending.push({ item, seq, mode });
     return true;
   }
 }
