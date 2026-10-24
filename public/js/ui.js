@@ -186,7 +186,7 @@ function updateTile(el, me, snap) {
     + `${cost != null && !afford ? ', not enough gold' : ''}${cd ? ', recharging' : ''}`);
 }
 
-export function updateHud({ snap, you, mode, lock, hiddenOres, danger }) {
+export function updateHud({ snap, you, mode, lock, danger }) {
   const opp = you === 'p1' ? 'p2' : 'p1';
   const me = snap.players[you];
   const op = snap.players[opp];
@@ -249,13 +249,13 @@ export function updateHud({ snap, you, mode, lock, hiddenOres, danger }) {
 
   for (const el of document.querySelectorAll('.tile')) updateTile(el, me, snap);
 
-  renderOres(me, lock, hiddenOres);
+  renderOres(me, lock);
   renderOppRocks(op);
 }
 
-function renderOres(me, lock, hiddenOres) {
+function renderOres(me, lock) {
   const fog = me.fog > 0;
-  const ores = me.ores.filter((o) => !hiddenOres.has(o.id));
+  const ores = me.ores;
   const lockOre = lock?.kind === 'ore' ? lock : null;
   const sig = ores.map((o) => `${o.id}:${o.ttl == null ? '' : Math.ceil(o.ttl)}`).join(',')
     + `|${lockOre?.id}:${lockOre?.typed}|${fog}|${me.combo}|${me.pickaxe}`;

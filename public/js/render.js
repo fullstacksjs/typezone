@@ -534,7 +534,7 @@ export class Renderer {
     for (const m of sorted) {
       if (m.target !== this.you) continue;
       const locked = !!lock && lock.kind === 'mob' && lock.id === m.id;
-      const wi = locked ? lock.wi : m.wi;
+      const wi = m.wi;
       const word = m.words[wi];
       if (!word) continue;
       const dist = (this.you === 'p1' ? m.dx : LANE_LENGTH - m.dx) / LANE_LENGTH;

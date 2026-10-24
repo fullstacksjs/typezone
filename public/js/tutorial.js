@@ -15,14 +15,14 @@ export class TutorialOverlay {
     this.signature = '';
   }
 
-  update({ lesson, player, mode, lock, hiddenOres, renderer }) {
+  update({ lesson, player, mode, lock, renderer }) {
     const done = lesson.id === 'done';
     const gatherFirst = lesson.id === 'upgrade' && mode !== 'gather';
     let rect;
     let word;
     if (lesson.id === 'mine') {
-      const ore = player.ores.find((ore) => !hiddenOres.has(ore.id) && ore.id === lock?.id)
-        ?? player.ores.find((ore) => !hiddenOres.has(ore.id));
+      const ore = player.ores.find((ore) => ore.id === lock?.id)
+        ?? player.ores[0];
       rect = ore && $(`#ores .ore[data-id="${ore.id}"]`)?.getBoundingClientRect();
       word = ore?.word;
     } else if (lesson.id === 'defend') {
