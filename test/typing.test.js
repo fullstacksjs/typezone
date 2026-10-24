@@ -139,3 +139,9 @@ test('Room delivers processed rejection with its authoritative snapshot', (t) =>
   state.receive(frame);
   assert.equal(state.view.snap.players.p1.ores.some((o) => o.id === ores[2].id), true);
 });
+
+test('input before the first frame is harmless', () => {
+  const state = new TypingState('p1');
+  assert.equal(state.setMode('fight', 1), null);
+  assert.deepEqual(state.type('a', 2), {});
+});

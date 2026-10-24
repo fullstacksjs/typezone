@@ -268,6 +268,7 @@ function handleEvent(e) {
 
 // ------------------------------------------------------------ typing
 function typeChar(ch) {
+  if (!S.snap) return;
   const lesson = S.snap?.tutorial;
   if (lesson && !['mine', 'defend'].includes(lesson.id)) return;
   const result = S.typing.type(ch, ++S.seq);

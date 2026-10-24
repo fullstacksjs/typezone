@@ -54,7 +54,7 @@ export class TypingState {
   }
 
   setMode(mode, seq) {
-    if (!['gather', 'fight'].includes(mode) || mode === this.view.mode) return null;
+    if (!this.view || !['gather', 'fight'].includes(mode) || mode === this.view.mode) return null;
     this.drop();
     const action = { t: 'mode', mode, seq };
     this.pending.push(action);
