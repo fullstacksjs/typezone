@@ -103,7 +103,7 @@ export class Bot {
   shop(threats) {
     const game = this.game;
     const me = this.me;
-    const legal = (item) => purchase(me, item, {
+    const legal = (item, gold = me.gold) => purchase({ ...me, gold }, item, {
       ended: !!game.winner, suddenDeath: game.time >= SUDDEN_DEATH_AT,
     }).available;
     if (me.ult >= ULT_MAX && threats.length >= 3) return game.ultimate(this.slot);
@@ -123,8 +123,8 @@ export class Bot {
     if (legal('fog') && me.gold >= SPELLS.fog.cost + 30 && Math.random() < 0.08) {
       return game.buy(this.slot, 'fog');
     }
-    if (!legal(this.saveFor)) {
-      const available = SEND_WEIGHTS.filter(([type]) => legal(type));
+    if (!legal(this.saveFor, Infinity)) {
+      const available = SEND_WEIGHTS.filter(([type]) => legal(type, Infinity));
       if (!available.length) return;
       this.saveFor = weightedPick(available);
     }

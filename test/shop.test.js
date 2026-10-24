@@ -94,3 +94,26 @@ test('Room watermark resolves accepted and rejected shop predictions', () => {
   room.handle(ws, { t: 'buy', item: 'pickaxe', seq: 1 });
   assert.equal(room.snapshot().processed.p1, 2);
 });
+
+test('an earlier Fight frame retains a purchase made after predicted Gather', () => {
+  const game = new Game();
+  Object.assign(game.players.p1, { gold: 100, mode: 'fight' });
+  const frame = { ...game.snapshot(), tutorial: { id: 'upgrade', item: 'pickaxe' }, processed: { p1: 0 } };
+  const shop = new ShopPrediction('p1');
+  shop.receive(frame);
+  assert.ok(shop.buy('pickaxe', 2, 'gather'));
+  shop.receive(frame);
+  assert.equal(shop.player.gold, 60);
+  assert.equal(shop.player.pickaxe, 1);
+});
+
+test('bot keeps saving for a charged expensive mob when funds are short', (t) => {
+  t.mock.method(Math, 'random', () => 0.9);
+  const game = new Game();
+  game.players.p1.gold = 20;
+  const bot = new Bot(game, 'p1');
+  bot.saveFor = 'giant';
+  bot.shop([]);
+  assert.equal(game.players.p1.gold, 20);
+  assert.equal(bot.saveFor, 'giant');
+});
