@@ -4,6 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { WebSocketServer } from 'ws';
 import { Room } from './room.js';
+import { logError, logInfo } from './posthog-logs.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const STATIC = {
@@ -44,6 +45,20 @@ async function serveStatic(req, res) {
 }
 
 const server = http.createServer((req, res) => {
+  const url = new URL(req.url, 'http://localhost');
+  if (url.pathname === '/posthog-config.js') {
+    const config = JSON.stringify({
+      projectToken: process.env.POSTHOG_PROJECT_TOKEN,
+      host: process.env.POSTHOG_HOST,
+      isDevelopment: process.env.NODE_ENV !== 'production',
+    }).replace(/</g, '\\u003c');
+    res.writeHead(200, {
+      'Content-Type': 'text/javascript; charset=utf-8',
+      'Cache-Control': 'no-cache',
+    });
+    res.end(`window.__POSTHOG_CONFIG__ = ${config};`);
+    return;
+  }
   serveStatic(req, res).catch(() => {
     res.writeHead(500);
     res.end();
@@ -80,6 +95,7 @@ wss.on('connection', (ws) => {
     try {
       onMessage(raw);
     } catch (err) {
+      logError('websocket_message_handling_failed', { error_type: err?.name ?? 'Error' });
       console.error('message handling failed:', err);
     }
   });
@@ -121,5 +137,6 @@ wss.on('connection', (ws) => {
 
 const PORT = Number(process.env.PORT) || 3000;
 server.listen(PORT, () => {
+  logInfo('typezone_server_started', { port: PORT });
   console.log(`TypeZone running at http://localhost:${PORT}`);
 });
