@@ -17,6 +17,8 @@ const S = {
   code: null,
   names: { p1: 'Player 1', p2: 'Player 2' },
   playing: false,
+  matchType: null,
+  tutorialCompleted: false,
   session: new MatchSession(null), // prediction and the frame we draw
   lastFrame: null, // latest authoritative snapshot
   snapAt: 0,
@@ -25,6 +27,8 @@ const S = {
 
 const opp = () => (S.you === 'p1' ? 'p2' : 'p1');
 const me = () => S.session.me;
+const capture = (event, properties) => window.posthog?.capture(event, properties);
+const logInfo = (message, attributes) => window.posthog?.logger?.info(message, attributes);
 
 const renderer = new Renderer($('#field'));
 const tutorial = new TutorialOverlay();
@@ -88,6 +92,16 @@ function onMessage(msg) {
       onSnapshot(msg);
       break;
     case 'end':
+      capture('match_completed', {
+        match_type: S.matchType,
+        result: msg.winner === S.you ? 'won' : 'lost',
+        completion_reason: msg.reason,
+      });
+      logInfo('match_completed', {
+        match_type: S.matchType,
+        result: msg.winner === S.you ? 'won' : 'lost',
+        completion_reason: msg.reason,
+      });
       S.playing = false;
       newSession(S.lastFrame);
       showEnd(msg, S.you, S.names);
@@ -127,12 +141,15 @@ function startMatch(tutorial = false) {
   $('#countdown').classList.add('hidden');
   $('#end').classList.add('hidden');
   S.playing = true;
+  S.tutorialCompleted = false;
   S.lastFrame = null;
   newSession();
   S.display.clear();
   feedback.reset(S.you, S.names);
   resetHud();
   sfx.count(true);
+  capture('match_started', { match_type: S.matchType, is_tutorial: tutorial });
+  logInfo('match_started', { match_type: S.matchType, is_tutorial: tutorial });
   if (!tutorial) showAlert('FIGHT! Mine gold and send your army', 'mine', 1600, 1, 'sword');
 }
 
@@ -174,6 +191,7 @@ function setMode(mode) {
   const action = S.session.setMode(mode);
   if (!action) return;
   conn.send(action);
+  capture('gameplay_mode_switched', { mode });
   sfx.switch();
 }
 
@@ -183,21 +201,26 @@ function buy(id) {
   flashShop(id, !!action);
   if (!action) return sfx.denied();
   conn.send(action);
+  capture('shop_purchase_attempted', { item_id: id });
 }
 
 /** Use the item in a supply slot; heals are predicted. */
 function useItem(slot) {
-  if (!S.playing || !me()?.items[slot]) return sfx.denied();
+  const itemId = me()?.items[slot]?.id;
+  if (!S.playing || !itemId) return sfx.denied();
   const action = S.session.use(slot);
   flashShop(slot, !!action);
   if (!action) return sfx.denied();
   conn.send(action);
+  capture('item_used', { item_id: itemId });
 }
 
 function ultimate() {
   const action = S.session.ultimate();
-  if (action) conn.send(action);
-  else if (S.session.policy.allows({ t: 'ult' })) sfx.denied();
+  if (action) {
+    conn.send(action);
+    capture('ultimate_activated');
+  } else if (S.session.policy.allows({ t: 'ult' })) sfx.denied();
 }
 
 const KEY_TO_ITEM = Object.fromEntries(SHOP_ITEMS.map((it) => [it.key, it.id]));
@@ -275,7 +298,13 @@ function frame(now) {
   }, dt);
   if (snap?.tutorial && onGame) {
     tutorial.update({ lesson: snap.tutorial, player: me(), mode, lock, renderer });
-    if (S.session.policy.complete) S.playing = false;
+    if (S.session.policy.complete) {
+      if (!S.tutorialCompleted) {
+        capture('tutorial_completed');
+        S.tutorialCompleted = true;
+      }
+      S.playing = false;
+    }
   } else tutorial.hide();
   requestAnimationFrame(frame);
 }
@@ -295,7 +324,12 @@ async function lobbyAction(msg) {
   $('#lobby-error').textContent = '';
   try {
     await conn.open();
+    S.matchType = msg.t;
     conn.send({ ...msg, name: playerName() });
+    capture('game_mode_selected', {
+      match_type: msg.t,
+      ...(msg.t === 'practice' ? { difficulty: msg.difficulty } : {}),
+    });
   } catch (err) {
     $('#lobby-error').textContent = err.message;
   }
@@ -324,6 +358,12 @@ $('#btn-tutorial-practice').addEventListener('click', () => {
 });
 
 function leaveRoom() {
+  if (S.you || S.playing) {
+    capture('game_session_left', {
+      match_type: S.matchType,
+      phase: S.playing ? 'match' : 'lobby',
+    });
+  }
   S.playing = false;
   S.you = null;
   newSession();
@@ -339,16 +379,20 @@ $('#btn-cancel').addEventListener('click', leaveRoom);
 $('#btn-leave').addEventListener('click', leaveRoom);
 $('#btn-rematch').addEventListener('click', () => {
   conn.send({ t: 'rematch' });
+  capture('rematch_requested', { match_type: S.matchType });
   $('#btn-rematch').disabled = true;
 });
 $('#btn-copy').addEventListener('click', async () => {
   const input = $('#share-link');
+  let copied = false;
   try {
     await navigator.clipboard.writeText(input.value);
+    copied = true;
   } catch {
     input.select();
-    document.execCommand('copy');
+    copied = document.execCommand('copy');
   }
+  if (copied) capture('room_link_copied');
   $('#btn-copy').textContent = 'Copied!';
   setTimeout(() => ($('#btn-copy').textContent = 'Copy'), 1200);
 });
@@ -360,7 +404,9 @@ function paintMute(muted) {
 }
 paintMute(isMuted());
 muteBtn.addEventListener('click', () => {
-  paintMute(toggleMute());
+  const muted = toggleMute();
+  paintMute(muted);
+  capture('sound_setting_changed', { muted });
   muteBtn.blur();
 });
 

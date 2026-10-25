@@ -4,11 +4,17 @@
   "description": "1v1 real-time typing battle: gather gold, send mobs, defend your base.",
   "type": "module",
   "scripts": {
-    "start": "node server/index.js",
-    "dev": "node --watch server/index.js",
+    "start": "node --env-file-if-exists=.env server/index.js",
+    "dev": "node --env-file-if-exists=.env --watch server/index.js",
     "test": "node --test test/*.test.js"
   },
   "dependencies": {
+    "@opentelemetry/api-logs": "0.223.0",
+    "@opentelemetry/exporter-logs-otlp-http": "0.300.0",
+    "@opentelemetry/resources": "3.0.0",
+    "@opentelemetry/sdk-logs": "3.0.0",
+    "@opentelemetry/sdk-node": "0.300.0",
+    "posthog-js": "1.438.21",
     "ws": "8.22.0"
   }
 }
