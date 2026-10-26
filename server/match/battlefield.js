@@ -1,11 +1,11 @@
-import { LANE_LENGTH, LANES, MOBS, BOUNTY_SHARE, PRESSURE_MOBS, ULT_PER_KILL, ULT_PER_ARMOR } from '../../shared/config.js';
+import { LANE_LENGTH, MOBS, BOUNTY_SHARE, PRESSURE_MOBS, ULT_PER_KILL, ULT_PER_ARMOR } from '../../shared/config.js';
 import { FROST } from '../../shared/shop.js';
 import { pickWord } from '../../shared/words.js';
 
 const other = (slot) => (slot === 'p1' ? 'p2' : 'p1');
 
 /**
- * Fight mode: mobs on the lanes, their words, movement, kills and base hits.
+ * Fight mode: mobs on the roads, their words, movement, kills and base hits.
  * `reserved` supplies words other Fight targets hold; `halted` lets a caller stop mobs in place.
  */
 export class Battlefield {
@@ -30,7 +30,7 @@ export class Battlefield {
 
   activeWords() { return this.mobs.map((m) => m.words[m.wi]).filter(Boolean); }
 
-  spawn(owner, type, at = 0, lane = null) {
+  spawn(owner, type, at = 0) {
     const def = MOBS[type];
     const target = other(owner);
     const incoming = this.incoming(target);
@@ -47,7 +47,7 @@ export class Battlefield {
       exclude.add(w);
     }
     const mob = {
-      id: this.ids.next(), type, owner, target, d: at, lane: lane ?? ((Math.random() * LANES) | 0), words, wi: 0, typed: 0,
+      id: this.ids.next(), type, owner, target, d: at, words, wi: 0, typed: 0,
     };
     this.mobs.push(mob);
     return mob;
@@ -80,11 +80,10 @@ export class Battlefield {
     defender.earn(bounty);
     defender.stats.mobsKilled++;
     if (cause === 'type') defender.chargeUlt(ULT_PER_KILL);
-    this.events.emit({ e: 'kill', slot, mobId: mob.id, type: mob.type, x: this.absX(mob), lane: mob.lane, bounty, cause });
+    this.events.emit({ e: 'kill', slot, mobId: mob.id, type: mob.type, x: this.absX(mob), bounty, cause });
     if (def.splits) {
       for (let i = 0; i < def.splits.count; i++) {
-        const lane = Math.max(0, Math.min(LANES - 1, mob.lane + (i === 0 ? -1 : 1)));
-        this.spawn(mob.owner, def.splits.into, Math.max(0, mob.d - 20 - i * 25), lane);
+        this.spawn(mob.owner, def.splits.into, Math.max(0, mob.d - 20 - i * 25));
       }
     }
     return 'kill';
@@ -93,7 +92,7 @@ export class Battlefield {
   /** Lightning: strips one word off every mob attacking `slot`. */
   strike(slot) {
     const struck = this.incoming(slot);
-    this.events.emit({ e: 'ult', slot, targets: struck.map((m) => ({ x: this.absX(m), lane: m.lane })) });
+    this.events.emit({ e: 'ult', slot, targets: struck.map((m) => ({ x: this.absX(m) })) });
     for (const mob of struck) this.breakWord(slot, mob, 'ult');
   }
 
@@ -112,7 +111,7 @@ export class Battlefield {
       this.players[mob.target].takeHit(dmg);
       this.players[mob.owner].stats.damageDealt += dmg;
       this.mobs.splice(this.mobs.indexOf(mob), 1);
-      this.events.emit({ e: 'baseHit', slot: mob.target, dmg, mobId: mob.id, lane: mob.lane });
+      this.events.emit({ e: 'baseHit', slot: mob.target, dmg, mobId: mob.id });
     }
   }
 
@@ -124,7 +123,6 @@ export class Battlefield {
       target: m.target,
       x: +this.absX(m).toFixed(1),
       vx: +((m.owner === 'p1' ? 1 : -1) * this.speedOf(m)).toFixed(1),
-      lane: m.lane,
       words: m.words,
       wi: m.wi,
       typed: m.typed,

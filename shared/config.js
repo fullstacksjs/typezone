@@ -2,7 +2,6 @@
 
 export const TICK_MS = 50;
 export const LANE_LENGTH = 1000;
-export const LANES = 3;
 export const BASE_HP = 100;
 export const START_GOLD = 30;
 export const PASSIVE_INCOME = 0.6; // gold per second

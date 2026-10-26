@@ -16,15 +16,15 @@ const SCRIPT = {
   mine: { passed: (action, result, tutorial) => action.t === 'gather' && result && ++tutorial.mined === 2 },
   send: {
     passed: (action, result) => action.t === 'buy' && result,
-    next: (game) => game.spawnMob('p2', 'goblin', 350, 1),
+    next: (game) => game.spawnMob('p2', 'goblin', 350),
   },
   switch: { passed: (action, result) => action.t === 'mode' && result },
   defend: {
     passed: (action, result) => action.t === 'hit' && result === 'kill',
     next: (game) => {
       game.players.p1.ult = ULT_MAX;
-      game.spawnMob('p2', 'goblin', 350, 0);
-      game.spawnMob('p2', 'goblin', 400, 2);
+      game.spawnMob('p2', 'goblin', 350);
+      game.spawnMob('p2', 'goblin', 400);
     },
   },
   lightning: {
