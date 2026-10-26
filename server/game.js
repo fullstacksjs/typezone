@@ -90,7 +90,7 @@ export class Game {
   }
 
   // ---------------------------------------------------------------- fight
-  spawnMob(owner, type, at = 0, lane = null) { return this.field.spawn(owner, type, at, lane); }
+  spawnMob(owner, type, at = 0) { return this.field.spawn(owner, type, at); }
 
   progress(slot, mobId, wi, typed) { this.field.progress(slot, mobId, wi, typed); }
 
@@ -158,8 +158,8 @@ export class Game {
   /** Offer effect: a purchased mob marches at the opponent. */
   sendMob(slot, type) {
     this.players[slot].stats.mobsSent++;
-    const mob = this.field.spawn(slot, type);
-    this.emit({ e: 'send', slot, type, lane: mob.lane });
+    this.field.spawn(slot, type);
+    this.emit({ e: 'send', slot, type });
   }
 
   /** Offer effect: announces a spell or upgrade. */

@@ -417,7 +417,7 @@ export class Renderer {
     ctx.stroke();
     ctx.setLineDash([]);
 
-    // Lane badges at our castle's edge: which road is ours, which is theirs.
+    // Road badges at our castle's edge: which road is ours, which is theirs.
     this.paintBadge(ctx, 262 * k, 214 * k, C.me, BADGE_ICONS.attack);
     this.paintBadge(ctx, 252 * k, 488 * k, C.opp, BADGE_ICONS.defend);
   }
@@ -515,8 +515,7 @@ export class Renderer {
     this.mobPos.clear();
     this.tutorialAnchor = null;
 
-    const sorted = [...mobs].sort((a, b) => a.lane - b.lane);
-    for (const m of sorted) {
+    for (const m of mobs) {
       const incoming = m.target === this.you;
       const x = this.sx(m.dx);
       const y = this.roadY(incoming);
@@ -532,7 +531,7 @@ export class Renderer {
     // above and below the road so a single file never stacks; a label with no room on
     // either side collapses into its neighbour's queue.
     const labels = [];
-    for (const m of sorted) {
+    for (const m of mobs) {
       if (m.target !== this.you) continue;
       const locked = !!lock && lock.kind === 'mob' && lock.id === m.id;
       const wi = m.wi;
