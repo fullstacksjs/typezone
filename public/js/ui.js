@@ -5,7 +5,7 @@ import {
 } from '../../shared/config.js';
 import { icon, gem, tileArt } from './icons.js';
 import { nugget, orePalette } from './nugget.js';
-import { minerSvg } from './pixel.js';
+import { minerSvg, wizardSvg } from './pixel.js';
 
 export const $ = (sel) => document.querySelector(sel);
 
@@ -80,6 +80,15 @@ export function buildShop(onBuy, onUse) {
 /** Puts a pixel miner in each mine. */
 export function buildMiners() {
   for (const side of ['me', 'opp']) $(`.mine.${side} .miner-spot`).insertAdjacentHTML('beforeend', minerSvg(side));
+}
+
+// The start menu's backdrop: each side's wizard on its stump, and its miner beside a few nuggets.
+const MENU_NUGGETS = { me: ['stone', 'gold', 'quartz'], opp: ['gold', 'stone', 'quartz'] };
+export function buildMenuWorld() {
+  for (const side of ['me', 'opp']) {
+    $(`.menu-stump.${side}`).insertAdjacentHTML('beforeend', wizardSvg(side, 'menu-wizard'));
+    $(`.menu-mine.${side}`).innerHTML = minerSvg(side) + MENU_NUGGETS[side].map(nugget).join('');
+  }
 }
 
 export function flashShop(id, ok) {

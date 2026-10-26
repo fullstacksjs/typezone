@@ -97,9 +97,17 @@ export const WIZARD_SIZE = { w: 24, h: 30 };
 /** The staff orb's centre in wizard pixels: where keystroke bolts leave from. */
 export const WIZARD_ORB = { x: 22, y: 11 };
 
+const path = ({ d, fill }) => `<path d="${d}" fill="${fill}"></path>`;
+
+/** Inline SVG markup for a wizard on the given side ('me' | 'opp'), facing right. */
+export function wizardSvg(side, cls = '') {
+  return `<svg class="${cls}" viewBox="0 0 ${WIZARD_SIZE.w} ${WIZARD_SIZE.h}" shape-rendering="crispEdges" aria-hidden="true">`
+    + WIZARD_ART[side].map(path).join('')
+    + '</svg>';
+}
+
 /** Inline SVG markup for a miner on the given side ('me' | 'opp'). */
 export function minerSvg(side) {
-  const path = ({ d, fill }) => `<path d="${d}" fill="${fill}"></path>`;
   return '<svg class="miner" viewBox="0 0 22 22" shape-rendering="crispEdges" aria-hidden="true">'
     + layers(MINER, minerPal(TEAM[side])).map(path).join('')
     + `<g class="swing">${PICK.map(path).join('')}</g>`
