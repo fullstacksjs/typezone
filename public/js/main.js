@@ -6,9 +6,9 @@ import { Connection } from './connection.js';
 import { Renderer } from './render.js';
 import { TutorialOverlay } from './tutorial.js';
 import { sfx, unlockAudio, toggleMute, isMuted } from './audio.js';
-import { icon } from './icons.js';
+import { icon, tileArt } from './icons.js';
 import {
-  $, SHOP_ITEMS, showScreen, buildShop, buildMiners, flashShop, showAlert, flashMiss, updateHud, resetHud, showEnd,
+  $, SHOP_ITEMS, showScreen, buildShop, buildMiners, buildMenuWorld, flashShop, showAlert, flashMiss, updateHud, resetHud, showEnd,
 } from './ui.js';
 
 // ------------------------------------------------------------ state
@@ -264,6 +264,8 @@ document.addEventListener('keydown', (e) => {
 
 buildShop(buy, useItem);
 buildMiners();
+buildMenuWorld();
+$('#bot-icon').innerHTML = tileArt('goblin', 44);
 
 // ------------------------------------------------------------ frame loop
 /** Mobs at their interpolated display positions, and how many are close to our base. */
@@ -347,7 +349,35 @@ $('#btn-join').addEventListener('click', () => {
 $('#join-code').addEventListener('keydown', (e) => {
   if (e.key === 'Enter') $('#btn-join').click();
 });
-$('#btn-practice').addEventListener('click', () => lobbyAction({ t: 'practice', difficulty: $('#bot-level').value }));
+
+// Mode tabs: one panel per mode; arrow keys move between tabs.
+const modeTabs = [...document.querySelectorAll('.mode')];
+function selectMode(tab) {
+  for (const t of modeTabs) {
+    const on = t === tab;
+    t.setAttribute('aria-selected', on);
+    t.tabIndex = on ? 0 : -1;
+    $(`#${t.getAttribute('aria-controls')}`).hidden = !on;
+  }
+}
+for (const tab of modeTabs) tab.addEventListener('click', () => selectMode(tab));
+$('.modes').addEventListener('keydown', (e) => {
+  const step = { ArrowRight: 1, ArrowLeft: -1 }[e.key];
+  if (!step) return;
+  const next = modeTabs[(modeTabs.indexOf(document.activeElement) + step + modeTabs.length) % modeTabs.length];
+  selectMode(next);
+  next.focus();
+});
+
+let botLevel = 'normal';
+const diffButtons = [...document.querySelectorAll('.diff')];
+for (const btn of diffButtons) {
+  btn.addEventListener('click', () => {
+    botLevel = btn.dataset.level;
+    for (const b of diffButtons) b.setAttribute('aria-checked', b === btn);
+  });
+}
+$('#btn-practice').addEventListener('click', () => lobbyAction({ t: 'practice', difficulty: botLevel }));
 $('#btn-tutorial').addEventListener('click', () => lobbyAction({ t: 'tutorial' }));
 
 $('#btn-tutorial-exit').addEventListener('click', leaveRoom);
@@ -372,6 +402,7 @@ function leaveRoom() {
   $('#end').classList.add('hidden');
   $('#countdown').classList.add('hidden');
   history.replaceState(null, '', '/');
+  $('#challenge').classList.add('hidden');
   showScreen('lobby');
 }
 
@@ -397,23 +428,33 @@ $('#btn-copy').addEventListener('click', async () => {
   setTimeout(() => ($('#btn-copy').textContent = 'Copy'), 1200);
 });
 
-const muteBtn = $('#btn-mute');
+const muteButtons = [$('#btn-mute'), $('#btn-lobby-mute')];
 function paintMute(muted) {
-  muteBtn.innerHTML = icon(muted ? 'soundOff' : 'soundOn', { size: 22, width: 2.5 });
-  muteBtn.setAttribute('aria-label', muted ? 'Unmute sound' : 'Mute sound');
+  for (const btn of muteButtons) {
+    btn.innerHTML = icon(muted ? 'soundOff' : 'soundOn', { size: 22, width: 2.5 });
+    btn.setAttribute('aria-label', muted ? 'Unmute sound' : 'Mute sound');
+  }
 }
 paintMute(isMuted());
-muteBtn.addEventListener('click', () => {
+$('#btn-mute').addEventListener('click', (e) => {
   const muted = toggleMute();
   paintMute(muted);
   capture('sound_setting_changed', { muted });
-  muteBtn.blur();
+  e.currentTarget.blur();
+});
+$('#btn-lobby-mute').addEventListener('click', () => {
+  const muted = toggleMute();
+  paintMute(muted);
+  capture('sound_setting_changed', { muted });
 });
 
 const roomParam = new URLSearchParams(location.search).get('room');
 if (roomParam) {
-  $('#join-code').value = roomParam.toUpperCase().slice(0, 4);
-  $('#lobby-error').textContent = 'Enter your name and hit Join to accept the challenge.';
+  const code = roomParam.toUpperCase().slice(0, 4);
+  $('#join-code').value = code;
+  $('#challenge-code').textContent = code;
+  $('#challenge').classList.remove('hidden');
+  selectMode($('#tab-pvp'));
   nameInput.focus();
 } else {
   nameInput.focus();
