@@ -87,8 +87,25 @@ const cleanName = (n) => String(n ?? '').replace(/[^\p{L}\p{N} _-]/gu, '').trim(
 
 const wss = new WebSocketServer({ server });
 
+// Cloudflare drops WebSockets idle for ~100s (lobby, results screen), so ping
+// well inside that. A socket that missed the previous pong is dead: drop it.
+const HEARTBEAT_MS = 30_000;
+const heartbeat = setInterval(() => {
+  for (const ws of wss.clients) {
+    if (!ws.alive) {
+      ws.terminate();
+      continue;
+    }
+    ws.alive = false;
+    ws.ping();
+  }
+}, HEARTBEAT_MS);
+wss.on('close', () => clearInterval(heartbeat));
+
 wss.on('connection', (ws) => {
   ws.room = null;
+  ws.alive = true;
+  ws.on('pong', () => (ws.alive = true));
   const send = (msg) => ws.readyState === ws.OPEN && ws.send(JSON.stringify(msg));
 
   ws.on('message', (raw) => {
