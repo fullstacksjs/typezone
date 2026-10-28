@@ -14,7 +14,7 @@
     "@opentelemetry/resources": "3.0.0",
     "@opentelemetry/sdk-logs": "3.0.0",
     "@opentelemetry/sdk-node": "0.300.0",
-    "posthog-js": "1.438.21",
+    "posthog-js": "1.441.2",
     "ws": "8.22.0"
   }
 }
